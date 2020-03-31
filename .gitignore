@@ -1,3 +1,12 @@
+data/*
+#data/outputs/heatmaps
+#!data/outputs
+#!data/outputs/heatmaps_png
+#!data/CSVs
+
+# ----------- Vim related    -----------
+*.swp
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
