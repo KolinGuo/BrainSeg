@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xorg-dev libboost-all-dev libsdl2-dev swig \
     libblas-dev liblapack-dev \
     libopenblas-base libatlas-base-dev graphviz \
+    libvips \
   && apt-get upgrade -y \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
