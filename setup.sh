@@ -11,7 +11,7 @@ REPONAME="BrainSeg"
 JUPYTERPORT="9000"
 TENSORBOARDPORT="6006"
 
-#COMMANDTOINSTALL="cd install && pip3 install -e ."
+COMMANDTOINSTALL="cd /BrainSeg/src/gSLICr && rm -rf build && mkdir build && cd build && cmake .. && make -j$(nproc) && cd /BrainSeg"
 COMMANDTORUN="jupyter notebook --no-browser --ip=0.0.0.0 --allow-root --port=$JUPYTERPORT &"
 COMMANDTOSTARTCONTAINER="docker start -ai $CONTNAME"
 
