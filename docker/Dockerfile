@@ -120,6 +120,8 @@ RUN echo -e "Make / Build OPENCV\n\n" && \
     .. && \
     make -j$(nproc) && make install
 
+ENV OpenCV_DIR=/usr/local/share/opencv/build
+
 ######################################
 # SECTION 5: Add running instruction #
 ######################################
