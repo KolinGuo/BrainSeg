@@ -52,6 +52,9 @@ RUN pip3 install jupyter_contrib_nbextensions \
   && pip3 install jupyter_nbextensions_configurator \
   && jupyter nbextensions_configurator enable
 
+# Jupyter runtime folder
+RUN mkdir /.local && chmod a+rwx /.local
+
 ######################################
 # SECTION 4: OpenCV packages         #
 ######################################
