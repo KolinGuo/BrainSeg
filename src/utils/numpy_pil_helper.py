@@ -47,6 +47,7 @@ def numpy_to_pil_grayscale(img_arr):
             # Paste the tile into image
             img_tile = Image.fromarray(img_arr[start_r:end_r, start_c:end_c], 'L')
             img.paste(img_tile, (start_c, start_r))
+            del img_tile
     return img
 
 def numpy_to_pil_rgb(img_arr):
@@ -77,4 +78,5 @@ def numpy_to_pil_rgb(img_arr):
             # Paste the tile into image
             img_tile = Image.fromarray(img_arr[start_r:end_r, start_c:end_c], 'RGB')
             img.paste(img_tile, (start_c, start_r))
+            del img_tile
     return img

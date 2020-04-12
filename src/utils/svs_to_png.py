@@ -6,6 +6,11 @@ from PIL import Image
 Image.MAX_IMAGE_PIXELS = None
 PIL_TILE_SIZE = 30000
 
+from .numpy_pil_helper import numpy_to_pil_rgb
+
+import logging
+logger = logging.getLogger('svs_to_png')
+
 # map vips formats to np dtypes
 format_to_dtype = {
     'uchar': np.uint8,
@@ -20,13 +25,60 @@ format_to_dtype = {
     'dpcomplex': np.complex128,
 }
 
-# vips image to numpy array
 def vips2numpy(vi):
+    '''
+    vips image to numpy array.
+    
+    Input:
+        vi : a pyvips Image object.
+    Output:
+        out : a numpy ndarray.
+    '''
     return np.ndarray(buffer=vi.write_to_memory(),
                       dtype=format_to_dtype[vi.format],
                       shape=[vi.height, vi.width, vi.bands])
 
-def svs_to_png(input_dir, output_dir):
+def svs_to_numpy(svs_file_path, save_png=False, save_png_dir=None):
+    '''
+    Convert a svs file to a numpy array.
+    
+    Inputs:
+        svs_file_path : A String to a .svs WSI file.
+        save_png      : boolean, True for saving a png file, default is False.
+        save_png_dir  : A String to saving directory path, default is None.
+    Output:
+        out : a numpy array representing an RGB image, (..., ..., 3).
+    '''
+    assert os.path.isfile(svs_file_path), 'Input .svs file "{}" does not exist!'.format(svs_file_path)
+
+    vips_img = Vips.Image.new_from_file(svs_file_path, level=0)
+    width, height = vips_img.width, vips_img.height
+
+    img_arr = vips2numpy(vips_img)
+    img_arr = img_arr[..., 0:3]     # remove alpha channel
+
+    if save_png and save_png_dir is not None:
+        if not os.path.exists(save_png_dir):
+            os.makedirs(save_png_dir)
+        img_name = svs_file_path.split('/')[-1].replace('.svs', '.png')
+
+        # Convert numpy array to PIL image
+        orig_img = numpy_to_pil_rgb(img_arr)
+        save_path = os.path.join(save_png_dir, img_name)
+        orig_img.save(save_path)
+        logger.info('Saved orig_img as %s', save_path)
+        del orig_img
+
+    return img_arr.astype('uint8')
+
+def svs_to_png_batch(input_dir, output_dir):
+    '''
+    Convert all svs files in input_dir to png images saved in output_dir.
+    
+    Inputs:
+        input_dir  : A String to input directory containing svs files.
+        output_dir : A String to output directory for saving converted png files.
+    '''
     assert os.path.isdir(input_dir), 'Input directory "{}" does not exist!'.format(input_dir)
 
     # Make output directory if not exists
@@ -77,5 +129,5 @@ if __name__ == '__main__':
     print("Input directory: " + args.input_dir)
     print("Output directory: " + args.output_dir)
 
-    svs_to_png(args.input_dir, args.output_dir)
+    svs_to_png_batch(args.input_dir, args.output_dir)
     print("Done!")
