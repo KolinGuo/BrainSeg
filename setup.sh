@@ -85,19 +85,52 @@ remove_prev_docker_image () {
 }
 
 create_custom_bashrc() {
-  echo > bashrc
+  cat > bashrc <<- "EOF"
+# If not running interactively, don't do anything
+[ -z "$PS1" ] && return
 
-  # Change PS1, terminal color, and cmd colors
-  echo export PS1=\"\\[\\e[31m\\]${CONTNAME}-docker\\[\\e[m\\] \\[\\e[33m\\]\\w\\[\\e[m\\] \> \" >> bashrc \
-    && echo export TERM=xterm-256color >> bashrc \
-    && echo alias grep=\"grep --color=auto\" >> bashrc \
-    && echo alias ls=\"ls --color=auto\" >> bashrc \
-    && echo >> bashrc
+# check the window size after each command and, if necessary,
+# update the values of LINES and COLUMNS.
+shopt -s checkwinsize
 
-  # Change terminal color and boldness
-  echo "# Cyan color" >> bashrc \
-    && echo echo -e \"\\e[1\;36m\" >> bashrc \
-    && echo >> bashrc
+# enable bash completion in interactive shells
+if ! shopt -oq posix; then
+  if [ -f /usr/share/bash-completion/bash_completion ]; then
+    . /usr/share/bash-completion/bash_completion
+  elif [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+  fi
+fi
+
+. /etc/bash_completion
+
+# if the command-not-found package is installed, use it
+if [ -x /usr/lib/command-not-found -o -x /usr/share/command-not-found/command-not-found ]; then
+  function command_not_found_handle {
+    # check because c-n-f could've been removed in the meantime
+    if [ -x /usr/lib/command-not-found ]; then
+      /usr/lib/command-not-found -- "$1"
+      return $?
+    elif [ -x /usr/share/command-not-found/command-not-found ]; then
+      /usr/share/command-not-found/command-not-found -- "$1"
+      return $?
+    else
+      printf "%s: command not found\n" "$1" >&2
+      return 127
+    fi
+  }
+fi
+
+# Change PS1 and terminal color
+export PS1="\[\e[31m\]brainseg-docker\[\e[m\] \[\e[33m\]\w\[\e[m\] > "
+export TERM=xterm-256color
+alias grep="grep --color=auto"
+alias ls="ls --color=auto"
+
+# Cyan color
+echo -e "\e[1;36m"
+
+EOF
 
   # If there is an installing command inside docker container
   if [ ! -z "$COMMANDTOINSTALL" ] ; then

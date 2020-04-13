@@ -6,7 +6,7 @@ FROM nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04
 RUN apt-get update && apt-get install -y --no-install-recommends \
     vim git curl wget yasm cmake unzip pkg-config \
     checkinstall build-essential ca-certificates \
-    software-properties-common apt-utils \
+    software-properties-common apt-utils bash-completion \
   && apt-get upgrade -y \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
@@ -54,6 +54,10 @@ RUN pip3 install jupyter_contrib_nbextensions \
 
 # Jupyter runtime folder
 RUN mkdir /.local && chmod a+rwx /.local
+
+# Install argcomplete for auto tab completing argparse in Python
+RUN pip3 install argcomplete \
+  && activate-global-python-argcomplete
 
 ######################################
 # SECTION 4: OpenCV packages         #
