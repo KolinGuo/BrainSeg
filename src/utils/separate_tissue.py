@@ -448,6 +448,7 @@ def separate_tissue_png_batch(input_dir, stain_mat_dir, output_dir):
         stain_file_idx = [ i for i, s in enumerate(stain_file_names) if s.startswith(img_name.split('.')[0]) ]
         if len(stain_file_idx) != 1:
             print('Found {} matched stain file whose name starts with "{}". Skipping this image...'.format(len(stain_file_idx), img_name.split('.')[0]))
+            t.update()
             continue
         stain_file_idx = stain_file_idx[0]
         stain_mat, stain_bk_rgb, stain_idx, stain_thres = parse_stain_mat(os.path.join(stain_mat_dir, stain_file_names[stain_file_idx]))
