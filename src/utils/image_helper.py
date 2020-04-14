@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
 import argparse, argcomplete
-import os, sys
+import os, sys, glob
 import numpy as np
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = None
@@ -21,6 +21,7 @@ class ImageHelper:
 
 List of available image helper functions:
     grayscale_to_binary     Convert grayscale images to binary, p[p > 0] = True
+    get_thumbnails          Save a thumbnail of the images, MAXSIZE=(2000,2000)
 ''')
         parser.add_argument(
                 'command', choices=method_list, 
@@ -29,11 +30,48 @@ List of available image helper functions:
         argcomplete.autocomplete(parser)
         args = parser.parse_args(sys.argv[1:2])
 
-        if not hasattr(self, args.command):
-            print('Unrecognized command "{}"'.format(args.command))
-            parser.print_help()
-            exit(1)
         getattr(self, args.command)()
+
+    def get_thumbnails(self):
+        parser = argparse.ArgumentParser(
+                description='Save a thumbnail of the images',
+                usage='''image_helper.py get_thumbnails <input_dir>\n''')
+        parser.add_argument('input_dir', type=str, 
+                help='Input directory of images')
+        args = parser.parse_args(sys.argv[2:3])
+
+        # Resolve path from os.getcwd()
+        args.input_dir = os.path.abspath(args.input_dir)
+
+        # Get all PNG images in input_dir
+        img_paths = [pathname for pathname in 
+                glob.glob(os.path.join(args.input_dir, "*.png"))]
+        img_paths = sorted(img_paths)
+
+        # Maximum size
+        max_size = (2000, 2000)
+
+        output_dir = os.path.join(args.input_dir, "thumbnails")
+        
+        # Make output directory if not exists
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        for i, img_path in enumerate(img_paths):
+            img_name = img_path.split('/')[-1]
+            img_save_path = os.path.join(output_dir, img_name)
+
+            print("Image {}/{} {}"\
+                    .format(i+1, len(img_paths), img_name))
+
+            # Read in png image
+            img = Image.open(img_path)
+
+            # Convert to a thumbnail and save
+            img.thumbnail(max_size)
+            img.save(img_save_path)
+
+            print('\t[%5s] Done! Saves to %s' % ("INFO", img_save_path))
 
     def grayscale_to_binary(self):
         parser = argparse.ArgumentParser(
