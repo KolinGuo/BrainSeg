@@ -4,6 +4,9 @@ data/*
 #!data/outputs/heatmaps_png
 #!data/CSVs
 
+# Temporary bashrc scripts
+*bashrc
+
 # ----------- Vim related    -----------
 *.swp
 
