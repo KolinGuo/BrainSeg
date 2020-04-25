@@ -14,11 +14,15 @@ Pillow
 scikit-image
 scikit-learn
 pyvips
+opencv-python==4.1.2.30
 PyWavelets
 
 # ML Framework
 torch==0.3.1
 torchvision==0.2.1
+tensorflow
+tf-nightly
+keras
 
 # Automatic Python-C++ bindings
 cppyy
