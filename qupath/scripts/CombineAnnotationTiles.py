@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
 import os, glob, time
+import gc   # Garbage Collector interface
 import argparse, argcomplete
 import numpy as np
 import re
@@ -85,11 +86,14 @@ def combine_annotation_tiles(args):
             save_img_back.paste(img_frombytes(back_arr), (start_x, start_y))
             save_img_grey.paste(img_frombytes(grey_arr), (start_x, start_y))
             save_img_white.paste(img_frombytes(white_arr), (start_x, start_y))
+            del tile_arr, back_arr, grey_arr, white_arr
     
         # Save the images
         save_img_back.save(os.path.join(SAVE_DIR, imagename + '-Background.png'))
         save_img_grey.save(os.path.join(SAVE_DIR, imagename + '-Grey.png'))
         save_img_white.save(os.path.join(SAVE_DIR, imagename + '-White.png'))
+        del save_img_back, save_img_grey, save_img_white
+        gc.collect()
 
 def get_parser():
     parser = argparse.ArgumentParser(
