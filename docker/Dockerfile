@@ -103,7 +103,7 @@ RUN pip3 uninstall -y tensorflow tensorboard
 RUN pip3 install -U tf-nightly-gpu tb-nightly tensorboard_plugin_profile
 
 # Jupyter runtime folder
-RUN mkdir /.local && chmod a+rwx /.local
+#RUN mkdir /.local && chmod a+rwx /.local
 
 # Install argcomplete for auto tab completing argparse in Python
 RUN pip3 install argcomplete \
