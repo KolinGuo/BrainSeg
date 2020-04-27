@@ -1,5 +1,5 @@
-#FROM nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04
-FROM tensorflow/tensorflow:2.1.0-gpu-py3-jupyter
+FROM nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04
+#FROM tensorflow/tensorflow:2.1.0-gpu-py3-jupyter
 
 #########################################
 # SECTION 0: Install OpenGL             #
