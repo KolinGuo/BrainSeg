@@ -6,7 +6,7 @@ from PIL import Image
 Image.MAX_IMAGE_PIXELS = None
 PIL_TILE_SIZE = 30000
 
-from .numpy_pil_helper import numpy_to_pil_rgb
+from numpy_pil_helper import numpy_to_pil_rgb
 
 import logging
 logger = logging.getLogger('svs_to_png')
