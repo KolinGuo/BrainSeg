@@ -24,5 +24,6 @@ tensorflow
 tf-nightly
 keras
 
-# Automatic Python-C++ bindings
+# Automatic Python-C++ binding
 cppyy
+tensorflow-datasets
