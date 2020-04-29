@@ -116,7 +116,7 @@ ARG OPENCV_PATH=/usr/local/share/opencv
 ARG OPENCV_CONTRIB_PATH=/usr/local/share/opencv_contrib
 ARG OPENCV_VERSION=4.2.0
 
-RUN apt-get -y install \
+RUN apt-get update && apt-get -y install \
     libglew-dev \
     libjpeg-dev libpng-dev libtiff-dev \
     libavcodec-dev libavformat-dev libswscale-dev libavresample-dev \

@@ -8,6 +8,7 @@ matplotlib
 tqdm
 pytest
 virtualenv
+mypy  # static type checker
 
 # Image Processing
 Pillow
