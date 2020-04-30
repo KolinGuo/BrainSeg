@@ -6,6 +6,8 @@ Image.MAX_IMAGE_PIXELS = None
 
 from svs_to_png import svs_to_numpy
 
+VAL_PROP = 1/3
+
 def generate_dataset(data_dir_AD, data_dir_control, patch_size):
     print('Generating dataset')
 
@@ -147,10 +149,80 @@ def generate_dataset(data_dir_AD, data_dir_control, patch_size):
                     transparency=0)
         del svs_img_arr, mask_arr
 
-    ##### Save paths to patches as .npy #####
-
     ##### Split into train and validation dataset #####
+    save_svs_file = os.path.join(save_dir, 'dataset.txt')
 
+    # Divide into train/val sets
+    val_AD_count        = int(np.ceil(len(svs_AD_paths) * VAL_PROP))
+    train_AD_count      = len(svs_AD_paths) - val_AD_count
+    val_control_count   = int(np.ceil(len(svs_control_paths) * VAL_PROP))
+    train_control_count = len(svs_control_paths) - val_control_count
+
+    # Randomly select svs into train/val sets
+    AD_idx            = np.random.permutation(len(svs_AD_paths))
+    control_idx       = np.random.permutation(len(svs_control_paths))
+    train_AD_idx      = AD_idx[0:train_AD_count]
+    val_AD_idx        = AD_idx[train_AD_count:]
+    train_control_idx = control_idx[0:train_control_count]
+    val_control_idx   = control_idx[train_control_count:]
+
+    train_AD_paths      = [p for i, p in enumerate(svs_AD_paths) 
+            if i in train_AD_idx]
+    val_AD_paths        = [p for i, p in enumerate(svs_AD_paths) 
+            if i in val_AD_idx]
+    train_control_paths = [p for i, p in enumerate(svs_control_paths) 
+            if i in train_control_idx]
+    val_control_paths   = [p for i, p in enumerate(svs_control_paths) 
+            if i in val_control_idx]
+
+    with open(save_svs_file, 'w') as f:
+        f.write(f'AD WSI: Train = {train_AD_count}, '
+                f'Validation = {val_AD_count}\n')
+        f.write('\tTrain: \n\t\t{}\n\tVal: \n\t\t{}\n'\
+                .format('\n\t\t'.join(train_AD_paths), 
+                    '\n\t\t'.join(val_AD_paths)))
+        f.write(f'Control WSI: Train = {train_control_count}, '
+                f'Validation = {val_control_count}\n')
+        f.write('\tTrain: \n\t\t{}\n\tVal: \n\t\t{}\n'\
+                .format('\n\t\t'.join(train_control_paths), 
+                    '\n\t\t'.join(val_control_paths)))
+
+    print(f'WSI AD: train = {train_AD_count}, val = {val_AD_count}')
+    print(f'WSI Control: train = {train_control_count}, val = {val_control_count}')
+    print(f'Train/Val svs files see "{save_svs_file}"\n')
+
+    ##### Save paths to patches as .npy #####
+    save_train_file = os.path.join(save_dir, 'train.npy')
+    save_val_file = os.path.join(save_dir, 'val.npy')
+
+    # Get list of tuple of patches, list(image_path, mask_path)
+    train_patch_paths, val_patch_paths = [], []
+    for svs_path in train_AD_paths + train_control_paths:
+        svs_name = svs_path.split('/')[-1].replace('.svs', '')
+        save_img_dir = os.path.join(save_dir, 'images', svs_name, "*.png")
+        save_mask_dir = os.path.join(save_dir, 'masks', svs_name, "*.png")
+
+        train_patch_paths += zip(sorted(glob.glob(save_img_dir)), 
+                sorted(glob.glob(save_mask_dir)))
+
+    for svs_path in val_AD_paths + val_control_paths:
+        svs_name = svs_path.split('/')[-1].replace('.svs', '')
+        save_img_dir = os.path.join(save_dir, 'images', svs_name, "*.png")
+        save_mask_dir = os.path.join(save_dir, 'masks', svs_name, "*.png")
+
+        val_patch_paths += zip(sorted(glob.glob(save_img_dir)), 
+                sorted(glob.glob(save_mask_dir)))
+
+    # Shuffle the dataset and save
+    train_patch_paths = np.array(train_patch_paths)
+    val_patch_paths   = np.array(val_patch_paths)
+    np.random.shuffle(train_patch_paths)
+    np.random.shuffle(val_patch_paths)
+    np.save(save_train_file, train_patch_paths)
+    np.save(save_val_file, val_patch_paths)
+
+    print(f'Patch Dataset: train = {train_patch_paths.shape}, val = {val_patch_paths.shape}')
+    print(f'Dataset saved as "{save_train_file}" and "{save_val_file}"')
 
 if __name__ == '__main__':
     ### For Testing ###
