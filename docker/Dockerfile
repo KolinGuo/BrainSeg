@@ -1,5 +1,40 @@
-FROM nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04
+FROM tensorflow/tensorflow:nightly-gpu-jupyter
+#FROM nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04
 #FROM tensorflow/tensorflow:2.1.0-gpu-py3-jupyter
+
+#########################################
+# SECTION -1: Install CUDA related      #
+#########################################
+# From nvidia/cuda:10.1-cudnn7-devel-ubuntu18.04
+ENV NCCL_VERSION 2.4.8
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    cuda-libraries-$CUDA_PKG_VERSION \
+    cuda-nvtx-$CUDA_PKG_VERSION \
+    libcublas10=10.2.1.243-1 \
+    libnccl2=$NCCL_VERSION-1+cuda10.1 && \
+    apt-mark hold libnccl2 && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    cuda-nvml-dev-$CUDA_PKG_VERSION \
+    cuda-command-line-tools-$CUDA_PKG_VERSION \
+    cuda-libraries-dev-$CUDA_PKG_VERSION \
+    cuda-minimal-build-$CUDA_PKG_VERSION \
+    libnccl-dev=$NCCL_VERSION-1+cuda10.1 \
+    libcublas-dev=10.2.1.243-1 && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV LIBRARY_PATH /usr/local/cuda/lib64/stubs
+
+ENV CUDNN_VERSION 7.6.5.32
+LABEL com.nvidia.cudnn.version="${CUDNN_VERSION}"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libcudnn7=$CUDNN_VERSION-1+cuda10.1 \
+    libcudnn7-dev=$CUDNN_VERSION-1+cuda10.1 && \
+    apt-mark hold libcudnn7 && \
+    rm -rf /var/lib/apt/lists/*
 
 #########################################
 # SECTION 0: Install OpenGL             #
@@ -114,7 +149,7 @@ RUN pip3 install argcomplete \
 ######################################
 ARG OPENCV_PATH=/usr/local/share/opencv
 ARG OPENCV_CONTRIB_PATH=/usr/local/share/opencv_contrib
-ARG OPENCV_VERSION=4.2.0
+ARG OPENCV_VERSION=4.3.0
 
 RUN apt-get update && apt-get -y install \
     libglew-dev \
@@ -155,7 +190,7 @@ RUN echo -e "Make / Build OPENCV\n\n" && \
     -D CMAKE_INSTALL_PREFIX=${OPENCV_PATH} \
     -D OPENCV_EXTRA_MODULES_PATH=${OPENCV_CONTRIB_PATH}/modules \
     -D WITH_CUDA=ON \
-    -D CUDA_ARCH_BIN=6.2 \
+    -D CUDA_ARCH_BIN=6.1 \
     -D CUDA_ARCH_PTX="" \
     -D WITH_CUDNN=ON \
     -D WITH_CUBLAS=ON \
@@ -189,3 +224,4 @@ WORKDIR ${REPOPATH}
 # Append the custom bashrc
 COPY bashrc /tmp/
 RUN cat /tmp/bashrc > /etc/bash.bashrc
+
