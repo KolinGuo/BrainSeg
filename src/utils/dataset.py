@@ -3,6 +3,7 @@ import numpy as np
 from tqdm import tqdm
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = None
+from tensorflow.keras.utils import Sequence
 
 from svs_to_png import svs_to_numpy
 
@@ -223,6 +224,23 @@ def generate_dataset(data_dir_AD, data_dir_control, patch_size):
 
     print(f'Patch Dataset: train = {train_patch_paths.shape}, val = {val_patch_paths.shape}')
     print(f'Dataset saved as "{save_train_file}" and "{save_val_file}"')
+
+class BrainSegSequence(Sequence):
+    def __init__(self, image_paths, mask_paths, batch_size):
+        self.image_paths = image_paths
+        self.mask_paths  = mask_paths
+        self.batch_size  = batch_size
+
+    def __len__(self):
+        return int(np.ceil(len(self.image_paths) / self.batch_size))
+
+    def __getitem__(self, idx):
+        batch_x = self.image_paths[idx * self.batch_size : 
+                (idx+1) * self.batch_size]
+        batch_y = self.mask_paths[idx * self.batch_size : 
+                (idx+1) * self.batch_size]
+        return np.array([np.array(Image.open(p)) for p in batch_x]), \
+                np.array([np.array(Image.open(p)) for p in batch_y])
 
 if __name__ == '__main__':
     ### For Testing ###
