@@ -4,12 +4,14 @@ from tqdm import tqdm
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = None
 from tensorflow.keras.utils import Sequence
+from typing import Tuple
+from nptyping import NDArray
 
 from svs_to_png import svs_to_numpy
 
 VAL_PROP = 1/3
 
-def generate_dataset(data_dir_AD, data_dir_control, patch_size):
+def generate_dataset(data_dir_AD: str, data_dir_control: str, patch_size: int) -> None:
     print('Generating dataset')
 
     # Convert to abspath
@@ -197,13 +199,13 @@ def generate_dataset(data_dir_AD, data_dir_control, patch_size):
     save_val_file = os.path.join(save_dir, 'val.npy')
 
     # Get list of tuple of patches, list(image_path, mask_path)
-    train_patch_paths, val_patch_paths = [], []
+    train_patches, val_patches = [], []     # type: ignore
     for svs_path in train_AD_paths + train_control_paths:
         svs_name = svs_path.split('/')[-1].replace('.svs', '')
         save_img_dir = os.path.join(save_dir, 'images', svs_name, "*.png")
         save_mask_dir = os.path.join(save_dir, 'masks', svs_name, "*.png")
 
-        train_patch_paths += zip(sorted(glob.glob(save_img_dir)), 
+        train_patches += zip(sorted(glob.glob(save_img_dir)),
                 sorted(glob.glob(save_mask_dir)))
 
     for svs_path in val_AD_paths + val_control_paths:
@@ -211,12 +213,12 @@ def generate_dataset(data_dir_AD, data_dir_control, patch_size):
         save_img_dir = os.path.join(save_dir, 'images', svs_name, "*.png")
         save_mask_dir = os.path.join(save_dir, 'masks', svs_name, "*.png")
 
-        val_patch_paths += zip(sorted(glob.glob(save_img_dir)), 
+        val_patches += zip(sorted(glob.glob(save_img_dir)),
                 sorted(glob.glob(save_mask_dir)))
 
     # Shuffle the dataset and save
-    train_patch_paths = np.array(train_patch_paths)
-    val_patch_paths   = np.array(val_patch_paths)
+    train_patch_paths = np.array(train_patches)
+    val_patch_paths   = np.array(val_patches)
     np.random.shuffle(train_patch_paths)
     np.random.shuffle(val_patch_paths)
     np.save(save_train_file, train_patch_paths)
@@ -226,15 +228,16 @@ def generate_dataset(data_dir_AD, data_dir_control, patch_size):
     print(f'Dataset saved as "{save_train_file}" and "{save_val_file}"')
 
 class BrainSegSequence(Sequence):
-    def __init__(self, image_paths, mask_paths, batch_size):
+    def __init__(self, image_paths: NDArray[str],
+            mask_paths: NDArray[str], batch_size: int):
         self.image_paths = image_paths
         self.mask_paths  = mask_paths
         self.batch_size  = batch_size
 
-    def __len__(self):
+    def __len__(self) -> int:
         return int(np.ceil(len(self.image_paths) / self.batch_size))
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> Tuple[NDArray[np.uint8], NDArray[np.uint8]]:
         batch_x = self.image_paths[idx * self.batch_size : 
                 (idx+1) * self.batch_size]
         batch_y = self.mask_paths[idx * self.batch_size : 

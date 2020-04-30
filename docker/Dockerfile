@@ -225,3 +225,5 @@ WORKDIR ${REPOPATH}
 COPY bashrc /tmp/
 RUN cat /tmp/bashrc > /etc/bash.bashrc
 
+# Numpy Type Hinting
+RUN pip3 install nptyping

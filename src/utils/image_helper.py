@@ -9,7 +9,7 @@ Image.MAX_IMAGE_PIXELS = None
 from numpy_pil_helper import numpy_to_pil_binary
 
 class ImageHelper:
-    def __init__(self):
+    def __init__(self) -> None:
         # Get available method list
         method_list = [func 
                 for func in dir(self) 
@@ -32,7 +32,7 @@ List of available image helper functions:
 
         getattr(self, args.command)()
 
-    def get_thumbnails(self):
+    def get_thumbnails(self) -> None:
         parser = argparse.ArgumentParser(
                 description='Save a thumbnail of the images',
                 usage='''image_helper.py get_thumbnails <input_dir>\n''')
@@ -73,7 +73,7 @@ List of available image helper functions:
 
             print('\t[%5s] Done! Saves to %s' % ("INFO", img_save_path))
 
-    def grayscale_to_binary(self):
+    def grayscale_to_binary(self) -> None:
         parser = argparse.ArgumentParser(
                 description='Convert grayscale images to binary and overwrites',
                 usage='''image_helper.py grayscale_to_binary <pathspec>\n''')

@@ -2,8 +2,9 @@ import numpy as np
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = None
 PIL_TILE_SIZE = 30000
+from nptyping import NDArray
 
-def numpy_to_pil_binary(img_arr):
+def numpy_to_pil_binary(img_arr: NDArray[bool]):
     '''
     Convert a 2D numpy boolean array to a mode '1' (binary) PIL image.
 
@@ -20,7 +21,7 @@ def numpy_to_pil_binary(img_arr):
     databytes = np.packbits(img_arr, axis=1)
     return Image.frombytes(mode='1', size=size, data=databytes)
 
-def numpy_to_pil_grayscale(img_arr):
+def numpy_to_pil_grayscale(img_arr: NDArray[np.uint8]):
     '''
     Convert a 2D numpy uint8 array to a mode 'L' (grayscale) PIL image.
 
@@ -50,7 +51,7 @@ def numpy_to_pil_grayscale(img_arr):
             del img_tile
     return img
 
-def numpy_to_pil_rgb(img_arr):
+def numpy_to_pil_rgb(img_arr: NDArray[np.uint8]):
     '''
     Convert a 3D numpy uint8 array to a mode 'RGB' (8-bit each channel) PIL image.
 

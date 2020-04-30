@@ -5,29 +5,30 @@ import numpy as np
 from tqdm import tqdm
 from time import time
 from datetime import datetime
+from typing import List
 
 from utils.svs_to_png import svs_to_numpy
 from utils.separate_tissue import separate_tissue
 
-def parse_arguments():
+def parse_arguments() -> argparse.Namespace:
     '''
     Parse command line arguments.
 
     Output:
         out : command line arguments.
     '''
-    args = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()
 
-    args.add_argument("input_dir", type=str, help="Input Directory of .png files (original WSI image)")
-    args.add_argument("output_dir", type=str, help="Output Directory of .png files")
+    parser.add_argument("input_dir", type=str, help="Input Directory of .png files (original WSI image)")
+    parser.add_argument("output_dir", type=str, help="Output Directory of .png files")
 
-    args.add_argument("--log_dir", type=str, default='/BrainSeg/data/outputs/logs', help="Directory for saving logs")
+    parser.add_argument("--log_dir", type=str, default='/BrainSeg/data/outputs/logs', help="Directory for saving logs")
     log_filename = datetime.now().strftime("%Y%m%d_%H%M%S.log")
-    args.add_argument("--log_filename", type=str, default=log_filename, help="Log file name (current timestamp) DON'T MODIFY")
+    parser.add_argument("--log_filename", type=str, default=log_filename, help="Log file name (current timestamp) DON'T MODIFY")
 
-    return args.parse_args()
+    return parser.parse_args()
 
-def log_args(args):
+def log_args(args: argparse.Namespace) -> None:
     '''
     Setup logging and log the input arguments.
 
@@ -91,12 +92,12 @@ if __name__ == '__main__':
 
         # Create svs image path and corresponding stain_file path
         img_path = os.path.join(args.input_dir, img_name)
-        stain_file_idx = [ i for i, s in enumerate(stain_file_names) if s.startswith(img_name.split('.')[0]) ]
-        if len(stain_file_idx) != 1:
-            print('Found {} matched stain file whose name starts with "{}". Skipping this image...'.format(len(stain_file_idx), img_name.split('.')[0]))
+        stain_file_idxs = [ i for i, s in enumerate(stain_file_names) if s.startswith(img_name.split('.')[0]) ]
+        if len(stain_file_idxs) != 1:
+            print('Found {} matched stain file whose name starts with "{}". Skipping this image...'.format(len(stain_file_idxs), img_name.split('.')[0]))
             t.update()
             continue
-        stain_file_idx = stain_file_idx[0]
+        stain_file_idx = stain_file_idxs[0]
         stain_file_path = os.path.join(args.input_dir, 'stain_contrast', stain_file_names[stain_file_idx])
 
         ##### Start the pipeline #####
@@ -120,7 +121,7 @@ if __name__ == '__main__':
         main_logger.debug('Collected %s garbages', gc.collect())
 
         timer_result = np.array(timer_result)
-        timer_result = timer_result[1:] - timer_result[:-1]
+        timer_result = timer_result[1:] - timer_result[:-1]     # type: ignore
 
         if i == 0:
             timer_results, tissue_timer_results = timer_result, tissue_timer_result
