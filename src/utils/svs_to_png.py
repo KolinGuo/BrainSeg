@@ -8,7 +8,7 @@ PIL_TILE_SIZE = 30000
 from typing import Any
 from nptyping import NDArray
 
-from numpy_pil_helper import numpy_to_pil_rgb
+from .numpy_pil_helper import numpy_to_pil_rgb
 
 import logging
 logger = logging.getLogger('svs_to_png')

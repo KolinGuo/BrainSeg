@@ -7,7 +7,7 @@ from tensorflow.keras.utils import Sequence
 from typing import Tuple
 from nptyping import NDArray
 
-from svs_to_png import svs_to_numpy
+from .svs_to_png import svs_to_numpy
 
 VAL_PROP = 1/3
 
