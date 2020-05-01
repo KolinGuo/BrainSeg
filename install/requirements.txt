@@ -9,6 +9,7 @@ tqdm
 pytest
 virtualenv
 mypy  # static type checker
+pydot   # For tf.keras.utils.plot_model
 
 # Image Processing
 Pillow
