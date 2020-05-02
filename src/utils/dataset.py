@@ -3,6 +3,7 @@ import numpy as np
 from tqdm import tqdm
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = None
+import tensorflow as tf
 from tensorflow.keras.utils import Sequence
 from typing import Tuple
 from nptyping import NDArray
@@ -11,7 +12,8 @@ from .svs_to_png import svs_to_numpy
 
 VAL_PROP = 1/3
 
-def generate_dataset(data_dir_AD: str, data_dir_control: str, patch_size: int) -> None:
+def generate_dataset(data_dir_AD: str, data_dir_control: str, 
+        patch_size: int) -> Tuple[str, str]:
     print('Generating dataset')
 
     # Convert to abspath
@@ -227,6 +229,8 @@ def generate_dataset(data_dir_AD: str, data_dir_control: str, patch_size: int) -
     print(f'Patch Dataset: train = {train_patch_paths.shape}, val = {val_patch_paths.shape}')
     print(f'Dataset saved as "{save_train_file}" and "{save_val_file}"')
 
+    return save_train_file, save_val_file
+
 class BrainSegSequence(Sequence):
     def __init__(self, image_paths: NDArray[str],
             mask_paths: NDArray[str], batch_size: int):
@@ -242,8 +246,10 @@ class BrainSegSequence(Sequence):
                 (idx+1) * self.batch_size]
         batch_y = self.mask_paths[idx * self.batch_size : 
                 (idx+1) * self.batch_size]
-        return np.array([np.array(Image.open(p)) for p in batch_x]), \
-                np.array([np.array(Image.open(p)) for p in batch_y])
+        return tf.convert_to_tensor([np.array(Image.open(p)) for p in batch_x], 
+                    dtype=tf.float32)/255.0, \
+                tf.convert_to_tensor([np.array(Image.open(p)) for p in batch_y],
+                    dtype=tf.float32)
 
 if __name__ == '__main__':
     ### For Testing ###
