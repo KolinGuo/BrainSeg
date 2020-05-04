@@ -37,12 +37,12 @@ def get_parser() -> argparse.ArgumentParser:
             help="Batch size of patches")
     train_parser.add_argument("--num-epochs", type=int, default=20,
             help="Number of training epochs")
-    train_parser.add_argument("--checkpoint-weights-only", action='store_true',
+    train_parser.add_argument("--ckpt-weights-only", action='store_true',
             help="Checkpoints will only save the model weights (Default: False)")
-    train_parser.add_argument("--checkpoint-dir", type=str, 
+    train_parser.add_argument("--ckpt-dir", type=str, 
             default='/BrainSeg/checkpoints', 
             help="Directory for saving/loading checkpoints")
-    train_parser.add_argument("--checkpoint-filepath", type=str, 
+    train_parser.add_argument("--ckpt-filepath", type=str, 
             default=None, 
             help="Checkpoint filepath to load and resume training from "
             "e.g. ./cp-001-50.51.ckpt.index")
@@ -91,32 +91,32 @@ def train(args):
 
     # Create another checkpoint/log folder for model.name and timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    args.checkpoint_dir = os.path.join(args.checkpoint_dir, 
+    args.ckpt_dir = os.path.join(args.ckpt_dir, 
             model.name+'-'+timestamp)
     args.log_dir = os.path.join(args.log_dir, 'fit', 
             model.name+'-'+timestamp)
 
     # Check if resume from training
     initial_epoch = 0
-    if args.checkpoint_filepath is not None:
-        if args.checkpoint_filepath.endswith('.index'):
-            args.checkpoint_filepath \
-                    = args.checkpoint_filepath.replace('.index', '')
+    if args.ckpt_filepath is not None:
+        if args.ckpt_filepath.endswith('.index'):
+            args.ckpt_filepath \
+                    = args.ckpt_filepath.replace('.index', '')
 
-        if args.checkpoint_weights_only:
-            model.load_weights(args.checkpoint_filepath)\
+        if args.ckpt_weights_only:
+            model.load_weights(args.ckpt_filepath)\
                     .assert_existing_objects_matched()
             print('Model weights loaded')
         else:
-            model = keras.models.load_model(args.checkpoint_filepath)
+            model = keras.models.load_model(args.ckpt_filepath)
             print('Full model (weights + optimizer state) loaded')
 
-        initial_epoch = int(args.checkpoint_filepath.split('/')[-1]\
+        initial_epoch = int(args.ckpt_filepath.split('/')[-1]\
                 .split('-')[1])
         # Save in same checkpoint_dir but different log_dir (add current time)
-        args.checkpoint_dir = os.path.abspath(
-                os.path.dirname(args.checkpoint_filepath))
-        args.log_dir = args.checkpoint_dir.replace(
+        args.ckpt_dir = os.path.abspath(
+                os.path.dirname(args.ckpt_filepath))
+        args.log_dir = args.ckpt_dir.replace(
                 'checkpoints', 'tf_logs/fit') + f'-retrain_{timestamp}'
 
     # Write configurations to log_dir
@@ -130,18 +130,18 @@ def train(args):
         writer.flush()
 
     # Create checkpoint directory
-    if not os.path.exists(args.checkpoint_dir):
-        os.makedirs(args.checkpoint_dir)
+    if not os.path.exists(args.ckpt_dir):
+        os.makedirs(args.ckpt_dir)
     # Create log directory
     if not os.path.exists(args.log_dir):
         os.makedirs(args.log_dir)
 
     # Create a callback that saves the model's weights every 1 epoch
-    checkpoint_path = os.path.join(args.checkpoint_dir, 
+    ckpt_path = os.path.join(args.ckpt_dir, 
             'cp-{epoch:03d}-{val_acc:.2f}.ckpt')
-    cp_callback = callbacks.ModelCheckpoint(filepath=checkpoint_path,
+    cp_callback = callbacks.ModelCheckpoint(filepath=ckpt_path,
             verbose=1, 
-            save_weights_only=args.checkpoint_weights_only,
+            save_weights_only=args.ckpt_weights_only,
             save_freq='epoch')
 
     # Create a TensorBoard callback
