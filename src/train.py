@@ -37,6 +37,8 @@ def get_parser() -> argparse.ArgumentParser:
             help="Batch size of patches")
     train_parser.add_argument("--num-epochs", type=int, default=20,
             help="Number of training epochs")
+    train_parser.add_argument("--val-subsplits", type=int, default=1,
+            help="Number to divide total number of val data for each epoch")
     train_parser.add_argument("--ckpt-weights-only", action='store_true',
             help="Checkpoints will only save the model weights (Default: False)")
     train_parser.add_argument("--ckpt-dir", type=str, 
@@ -125,8 +127,10 @@ def train(args):
         tf.summary.text("Dataset", open(save_svs_file).read(), step=0)
         for key, value in vars(args).items():
             tf.summary.text(str(key), str(value), step=0)
-        tf.summary.text("Train_Batches_per_epoch", str(len(train_dataset)), step=0)
-        tf.summary.text("Val_Batches_per_epoch", str(len(val_dataset)), step=0)
+        tf.summary.text("Train_Batches_per_epoch", 
+                str(len(train_dataset)), step=0)
+        tf.summary.text("Val_Batches_per_epoch", 
+                str(len(val_dataset) // args.val_subsplits), step=0)
         writer.flush()
 
     # Create checkpoint directory
@@ -138,7 +142,7 @@ def train(args):
 
     # Create a callback that saves the model's weights every 1 epoch
     ckpt_path = os.path.join(args.ckpt_dir, 
-            'cp-{epoch:03d}-{val_acc:.2f}.ckpt')
+            'cp-{epoch:03d}-{val_meaniou:.2f}.ckpt')
     cp_callback = callbacks.ModelCheckpoint(filepath=ckpt_path,
             verbose=1, 
             save_weights_only=args.ckpt_weights_only,
@@ -148,7 +152,7 @@ def train(args):
     tb_callback = callbacks.TensorBoard(log_dir=args.log_dir, 
             histogram_freq=1,
             write_graph=True,
-            write_images=True,
+            write_images=False,
             update_freq='batch',
             profile_batch=2)
 
@@ -157,7 +161,7 @@ def train(args):
             steps_per_epoch=len(train_dataset),
             initial_epoch=initial_epoch,
             validation_data=val_dataset,
-            validation_steps=len(val_dataset),
+            validation_steps=len(val_dataset) // args.val_subsplits,
             callbacks=[cp_callback, tb_callback])
 
     print('Training finished!')
