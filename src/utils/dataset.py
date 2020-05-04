@@ -13,7 +13,7 @@ from .svs_to_png import svs_to_numpy
 VAL_PROP = 1/3
 
 def generate_dataset(data_dir_AD: str, data_dir_control: str, 
-        patch_size: int) -> Tuple[str, str]:
+        patch_size: int, force_regenerate: bool=False) -> Tuple[str, str, str]:
     print('Generating dataset')
 
     # Convert to abspath
@@ -88,6 +88,7 @@ def generate_dataset(data_dir_AD: str, data_dir_control: str,
             f'and {len(svs_control_paths)} control WSIs\n\t'
             f'saving at "{save_dir}"')
 
+    found_new_svs = False
     for i, svs_path in enumerate(tqdm(svs_AD_paths + svs_control_paths)):
         # Get corresponding groundtruth path
         truth_paths      = (truth_AD_paths + truth_control_paths)[i]
@@ -105,6 +106,8 @@ def generate_dataset(data_dir_AD: str, data_dir_control: str,
             os.makedirs(save_mask_dir)
         else:   # Skip if already generated for this WSI
             continue
+
+        found_new_svs = True
 
         # Convert svs to numpy array
         svs_img_arr     = svs_to_numpy(svs_path)
@@ -156,6 +159,16 @@ def generate_dataset(data_dir_AD: str, data_dir_control: str,
 
     ##### Split into train and validation dataset #####
     save_svs_file = os.path.join(save_dir, 'dataset.txt')
+    save_train_file = os.path.join(save_dir, 'train.npy')
+    save_val_file = os.path.join(save_dir, 'val.npy')
+
+    # Return if no need for regenerate dataset
+    if not force_regenerate and not found_new_svs \
+            and os.path.exists(save_svs_file) \
+            and os.path.exists(save_train_file) \
+            and os.path.exists(save_val_file):
+        print("Found existing dataset, won't regenerate it")
+        return save_svs_file, save_train_file, save_val_file
 
     # Divide into train/val sets
     val_AD_count        = int(np.ceil(len(svs_AD_paths) * VAL_PROP))
@@ -197,9 +210,6 @@ def generate_dataset(data_dir_AD: str, data_dir_control: str,
     print(f'Train/Val svs files see "{save_svs_file}"\n')
 
     ##### Save paths to patches as .npy #####
-    save_train_file = os.path.join(save_dir, 'train.npy')
-    save_val_file = os.path.join(save_dir, 'val.npy')
-
     # Get list of tuple of patches, list(image_path, mask_path)
     train_patches, val_patches = [], []     # type: ignore
     for svs_path in train_AD_paths + train_control_paths:
@@ -229,7 +239,7 @@ def generate_dataset(data_dir_AD: str, data_dir_control: str,
     print(f'Patch Dataset: train = {train_patch_paths.shape}, val = {val_patch_paths.shape}')
     print(f'Dataset saved as "{save_train_file}" and "{save_val_file}"')
 
-    return save_train_file, save_val_file
+    return save_svs_file, save_train_file, save_val_file
 
 class BrainSegSequence(Sequence):
     def __init__(self, image_paths: NDArray[str],

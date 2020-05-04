@@ -92,9 +92,9 @@ def train(args):
     mixed_precision.set_policy(policy)
 
     # Create dataset
-    save_train_file, save_val_file \
+    save_svs_file, save_train_file, save_val_file \
             = generate_dataset(args.data_dir_AD, args.data_dir_control, 
-                    args.patch_size)
+                    args.patch_size, force_regenerate=False)
 
     train_paths = np.load(save_train_file)
     val_paths = np.load(save_val_file)
@@ -148,6 +148,7 @@ def train(args):
     # Write configurations to log_dir
     writer = tf.summary.create_file_writer(args.log_dir + "/config")
     with writer.as_default():
+        tf.summary.text("Dataset", open(save_svs_file).read(), step=0)
         for key, value in vars(args).items():
             tf.summary.text(str(key), str(value), step=0)
         tf.summary.text("Train_Batches_per_epoch", str(len(train_dataset)), step=0)
