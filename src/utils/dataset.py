@@ -246,10 +246,10 @@ class BrainSegSequence(Sequence):
                 (idx+1) * self.batch_size]
         batch_y = self.mask_paths[idx * self.batch_size : 
                 (idx+1) * self.batch_size]
-        return tf.convert_to_tensor([np.array(Image.open(p)) for p in batch_x], 
-                    dtype=tf.float32)/255.0, \
-                tf.convert_to_tensor([np.array(Image.open(p)) for p in batch_y],
-                    dtype=tf.float32)
+        return np.array([np.array(Image.open(p)) for p in batch_x], 
+                    dtype=np.float32) / 255.0, \
+                np.array([np.array(Image.open(p)) for p in batch_y],
+                    dtype=np.float32)
 
 if __name__ == '__main__':
     ### For Testing ###
