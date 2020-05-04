@@ -38,7 +38,7 @@ def get_parser() -> argparse.ArgumentParser:
     train_parser.add_argument("--num-epochs", type=int, default=20,
             help="Number of training epochs")
     train_parser.add_argument("--checkpoint-weights-only", action='store_true',
-            help="Save the model weights only as checkpoints (Default: False)")
+            help="Checkpoints will only save the model weights (Default: False)")
     train_parser.add_argument("--checkpoint-dir", type=str, 
             default='/BrainSeg/checkpoints', 
             help="Directory for saving/loading checkpoints")
@@ -49,32 +49,6 @@ def get_parser() -> argparse.ArgumentParser:
     train_parser.add_argument("--log-dir", type=str, 
             default='/BrainSeg/tf_logs', 
             help="Directory for saving tensorboard logs")
-
-    #mask_parser = parser.add_argument_group(
-    #        'select the kinds of masks to compute accuracy')
-    #mask_parser.add_argument("-b", "--background", action='store_true',
-    #        help="Compute accuracy for background masks only")
-    #mask_parser.add_argument("-g", "--gray", action='store_true',
-    #        help="Compute accuracy for gray matter masks only")
-    #mask_parser.add_argument("-w", "--white", action='store_true',
-    #        help="Compute accuracy for white matter masks only")
-    #mask_parser.add_argument("-t", "--tissue", action='store_true',
-    #        help="Compute accuracy for tissue masks only")
-
-    #metric_parser = parser.add_argument_group(
-    #        'select the kinds of metrics to compute accuracy')
-    #metric_parser.add_argument("-p", "--pixel-accuracy", action='store_true',
-    #        help="Compute accuracy using pixel accuracy only")
-    #metric_parser.add_argument("-ma", "--mean-accuracy", action='store_true',
-    #        help="Compute accuracy using mean accuracy only")
-    #metric_parser.add_argument("-i", "--iou", action='store_true',
-    #        help="Compute accuracy using IoU only")
-    #metric_parser.add_argument("-mi", "--mean-iou", action='store_true',
-    #        help="Compute accuracy using mean IoU only")
-    #metric_parser.add_argument("-fi", "--frequency-iou", action='store_true',
-    #        help="Compute accuracy using frequency weighted IoU only")
-    #metric_parser.add_argument("-f", "--f1-score", action='store_true',
-    #        help="Compute accuracy using F1 score only")
 
     return parser
 
