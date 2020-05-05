@@ -15,10 +15,10 @@ Number = TypeVar('Number', bound=Real)
 class ComputeMaskAccuracy:
     def __init__(self, args: argparse.Namespace):
         # Convert to abspath
-        args.truth_dir = os.path.abspath(args.truth_dir)
+        args.truth_dir = [os.path.abspath(p) for p in args.truth_dir]
         args.test_dir = os.path.abspath(args.test_dir)
         # Check if isdir
-        assert os.path.isdir(args.truth_dir), \
+        assert all([os.path.isdir(p) for p in args.truth_dir]), \
                 f'Groundtruth directory {args.truth_dir} does not exist!'
         assert os.path.isdir(args.test_dir), \
                 f'Testing directory {args.test_dir} does not exist!'
@@ -34,10 +34,10 @@ class ComputeMaskAccuracy:
                 'By default the program will automatically determine\n\t\t'
                 'based on directory content and use IoU.')
 
-        parser.add_argument("truth_dir", type=str, 
-                help="Directory of groundtruth .png files")
         parser.add_argument("test_dir", type=str, 
                 help="Directory of testing .png files")
+        parser.add_argument("truth_dir", type=str, nargs='+',
+                help="Directories of groundtruth .png files")
 
         mask_parser = parser.add_argument_group(
                 'select the kinds of masks to compute accuracy')
@@ -248,11 +248,19 @@ class ComputeMaskAccuracy:
 
             for mi, mask_name in enumerate(test_paths.keys()):
                 if mask_name == 'tissue':
-                    truth_img_path = os.path.join(args.truth_dir, 
+                    truth_img_path = os.path.join(args.truth_dir[0], 
                             image_name+glob_strs['back'][1:])
+                    for truth_dir in args.truth_dir[1:]:
+                        if not os.path.exists(truth_img_path):
+                            truth_img_path = os.path.join(truth_dir, 
+                                    image_name+glob_strs['back'][1:])
                 else:
-                    truth_img_path = os.path.join(args.truth_dir, 
+                    truth_img_path = os.path.join(args.truth_dir[0], 
                             image_name+glob_strs[mask_name][1:])
+                    for truth_dir in args.truth_dir[1:]:
+                        if not os.path.exists(truth_img_path):
+                            truth_img_path = os.path.join(truth_dir, 
+                                    image_name+glob_strs[mask_name][1:])
                 test_img_path = os.path.join(args.test_dir, 
                         image_name+glob_strs[mask_name][1:])
 
