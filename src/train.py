@@ -110,7 +110,8 @@ def train(args):
                     .assert_existing_objects_matched()
             print('Model weights loaded')
         else:
-            model = keras.models.load_model(args.ckpt_filepath)
+            model = keras.models.load_model(args.ckpt_filepath,
+                    custom_objects={'SparseMeanIoU': SparseMeanIoU})
             print('Full model (weights + optimizer state) loaded')
 
         initial_epoch = int(args.ckpt_filepath.split('/')[-1]\
