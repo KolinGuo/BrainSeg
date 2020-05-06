@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
 from datetime import datetime
-import os, glob, gc
+import os, glob, gc, re
 import argparse, argcomplete
 import numpy as np
 from tqdm import tqdm
@@ -12,8 +12,8 @@ from tensorflow.keras.mixed_precision import experimental as mixed_precision
 
 from train import SparseMeanIoU
 from models.UNet import unet_model_zero_pad
-from utils.dataset import generate_norm_patches, reconstruct_predicted_masks, \
-        save_predicted_masks
+from utils.dataset import generate_predict_dataset, reconstruct_predicted_masks, \
+        save_predicted_masks, BrainSegPredictSequence
 
 def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -56,9 +56,8 @@ def predict(args):
     mixed_precision.set_policy(policy)
 
     # Create dataset
-    svs_paths = sorted([p for d in args.svs_dirs 
-        for p in glob.glob(os.path.join(os.path.abspath(d), "*AB*.svs"))])
-    print(f'\n\tFound {len(svs_paths)} WSIs in {args.svs_dirs}')
+    svs_paths, patch_dir \
+            = generate_predict_dataset(args.svs_dirs, args.patch_size)
 
     # Create network model
     if args.ckpt_weights_only:
@@ -80,28 +79,43 @@ def predict(args):
     success_count = 0
     for i, svs_path in enumerate(tqdm(svs_paths)):
         svs_name = svs_path.split('/')[-1].replace('.svs', '')
-        # Generate patches from svs
-        patches, patch_coords = generate_norm_patches(svs_path, args.patch_size)
-        num_patches = patches.shape[0]
 
+        # Load corresponding patches
+        svs_patch_dir = os.path.join(patch_dir, 'images', svs_name)
+        svs_patch_paths = sorted(glob.glob(os.path.join(svs_patch_dir, "*.png")),
+                key = lambda p: \
+                [int(s) for s in re.split('\(|,|\)', p.split('/')[-1])[1:-1]])
+
+        patch_coords = np.array([[int(s) 
+            for s in re.split('\(|,|\)', p.split('/')[-1])[1:-1]] 
+            for p in svs_patch_paths], dtype=int)
+
+        # Get number of patches
+        num_patches = patch_coords.shape[0]
         print(f'\n\t{svs_name}: generated {num_patches} patches')
 
         # Limit one-time predict to 5 GB data
-        patch_masks = np.zeros_like(patches)
+        patch_masks = np.zeros(
+                (num_patches, args.patch_size, args.patch_size, 3), 
+                dtype=np.float32)
         num_patch_per_round = 5*1024**3 // \
-                (np.prod(patches.shape[1:]) * patches.itemsize)
+                (np.prod(patch_masks.shape[1:]) * patch_masks.itemsize)
         num_rounds = int(np.ceil(num_patches / num_patch_per_round))
         print(f'\tBeginning {num_rounds} rounds of prediction')
         for ri in range(num_rounds):
             start_p = ri * num_patch_per_round
             end_p = min(num_patches, start_p + num_patch_per_round)
 
+            # Create a data Sequence
+            patches_dataset = BrainSegPredictSequence(
+                    svs_patch_paths[start_p:end_p], args.batch_size)
+
             # Pass to model for prediction
             patch_masks[start_p:end_p, ...] \
-                    = model.predict(patches[start_p:end_p, ...], 
-                            batch_size=args.batch_size,
-                            verbose=1)
-        del patches
+                    = model.predict(patches_dataset,
+                            verbose=1,
+                            workers=os.cpu_count(),
+                            use_multiprocessing=True)
 
         # Reconstruct whole image from patch_masks
         mask_arr = reconstruct_predicted_masks(patch_masks, patch_coords)

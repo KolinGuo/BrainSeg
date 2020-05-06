@@ -5,7 +5,7 @@ from PIL import Image
 Image.MAX_IMAGE_PIXELS = None
 import tensorflow as tf
 from tensorflow.keras.utils import Sequence
-from typing import Tuple
+from typing import Tuple, List
 from nptyping import NDArray
 
 from .svs_to_png import svs_to_numpy
@@ -124,6 +124,74 @@ def extract_patches(img_arr, patch_size, keep_as_view=True):
     else:
         return img_arr.reshape(M//p0, p0, N//p1, p1, D).swapaxes(1,2)\
                 .reshape(-1, p0, p1, D)
+
+def generate_predict_dataset(data_dirs: List[str], patch_size: int) \
+        -> Tuple[str, str]:
+    """
+    Generate a prediction dataset
+
+    Inputs:
+        data_dirs  : list of .svs directory paths
+        patch_size : patch size
+    Outputs:
+        svs_paths : list of .svs file paths
+        save_dir  : patch saving directory path
+    """
+    print('Generating dataset')
+
+    ##### Get WSI paths #####
+    # Convert to abspath
+    data_dirs = [os.path.abspath(d) for d in data_dirs]
+    # Glob data .svs filepaths
+    svs_paths = sorted([p for d in data_dirs 
+        for p in glob.glob(os.path.join(d, "*AB*.svs"))])
+    print(f'\n\tFound {len(svs_paths)} WSIs in {data_dirs}')
+
+    ##### Generate Patches #####
+    save_dir = os.path.join(os.path.dirname(data_dirs[0]), f'patches_{patch_size}')
+    print(f'Generating patches of size {patch_size}x{patch_size} \n\t'
+            f'for {len(svs_paths)} WSIs \n\t'
+            f'saving at "{save_dir}"')
+
+    for i, svs_path in enumerate(tqdm(svs_paths)):
+        svs_name = svs_path.split('/')[-1].replace('.svs', '')
+
+        save_img_dir = os.path.join(save_dir, 'images', svs_name)
+        if not os.path.exists(save_img_dir):
+            os.makedirs(save_img_dir)
+        else:   # Skip if already generated for this WSI
+            continue
+
+        # Convert svs to numpy array
+        svs_img_arr      = svs_to_numpy(svs_path)
+        height, width, _ = svs_img_arr.shape
+
+        iters = np.ceil([height / patch_size, width / patch_size]).astype('int')
+        for row in range(iters[0]):
+            for col in range(iters[1]):
+                # Get start and end pixel location
+                if row != iters[0] - 1:
+                    start_r = row * patch_size
+                    end_r   = start_r + patch_size
+                else:
+                    start_r = height - patch_size
+                    end_r   = height
+                if col != iters[1] - 1:
+                    start_c = col * patch_size
+                    end_c   = start_c + patch_size
+                else:
+                    start_c = width - patch_size
+                    end_c   = width
+
+                # Cut patches
+                svs_patch = Image.fromarray(
+                        svs_img_arr[start_r:end_r, start_c:end_c], 'RGB')
+
+                # Save patches
+                svs_patch.save(os.path.join(save_img_dir, 
+                    svs_name+f'_({start_r},{start_c},{end_r},{end_c}).png'))
+        del svs_img_arr
+    return svs_paths, save_dir
 
 def generate_dataset(data_dir_AD: str, data_dir_control: str, 
         patch_size: int, force_regenerate: bool=False) -> Tuple[str, str, str]:
@@ -367,9 +435,23 @@ def generate_dataset(data_dir_AD: str, data_dir_control: str,
 
     return save_svs_file, save_train_file, save_val_file
 
+class BrainSegPredictSequence(Sequence):
+    def __init__(self, image_paths: NDArray[str], batch_size: int) -> None:
+        self.image_paths = image_paths
+        self.batch_size  = batch_size
+
+    def __len__(self) -> int:
+        return int(np.ceil(len(self.image_paths) / self.batch_size))
+
+    def __getitem__(self, idx: int) -> NDArray[np.float32]:
+        batch_x = self.image_paths[idx * self.batch_size : 
+                (idx+1) * self.batch_size]
+        return np.array([np.array(Image.open(p)) for p in batch_x], 
+                    dtype=np.float32) / 255.0
+
 class BrainSegSequence(Sequence):
     def __init__(self, image_paths: NDArray[str],
-            mask_paths: NDArray[str], batch_size: int):
+            mask_paths: NDArray[str], batch_size: int) -> None:
         self.image_paths = image_paths
         self.mask_paths  = mask_paths
         self.batch_size  = batch_size
@@ -377,7 +459,7 @@ class BrainSegSequence(Sequence):
     def __len__(self) -> int:
         return int(np.ceil(len(self.image_paths) / self.batch_size))
 
-    def __getitem__(self, idx: int) -> Tuple[NDArray[np.uint8], NDArray[np.uint8]]:
+    def __getitem__(self, idx: int) -> Tuple[NDArray[np.float32], NDArray[np.float32]]:
         batch_x = self.image_paths[idx * self.batch_size : 
                 (idx+1) * self.batch_size]
         batch_y = self.mask_paths[idx * self.batch_size : 
