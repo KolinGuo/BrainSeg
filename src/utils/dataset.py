@@ -112,6 +112,7 @@ def generate_norm_patches(svs_path: str, patch_size: int) \
             patch_coords[idx, ...] = [start_r, start_c, end_r, end_c]
             idx += 1
 
+    del svs_img_arr
     return patches/255.0, patch_coords
 
 def extract_patches(img_arr, patch_size, keep_as_view=True):
