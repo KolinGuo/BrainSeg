@@ -58,7 +58,7 @@ def predict(args):
     # Create dataset
     svs_paths = sorted([p for d in args.svs_dirs 
         for p in glob.glob(os.path.join(os.path.abspath(d), "*AB*.svs"))])
-    print(f'\tFound {len(svs_paths)} WSIs in {args.svs_dirs}')
+    print(f'\n\tFound {len(svs_paths)} WSIs in {args.svs_dirs}')
 
     # Create network model
     if args.ckpt_weights_only:
@@ -82,13 +82,25 @@ def predict(args):
         svs_name = svs_path.split('/')[-1].replace('.svs', '')
         # Generate patches from svs
         patches, patch_coords = generate_norm_patches(svs_path, args.patch_size)
+        num_patches = patches.shape[0]
 
-        print(f'\t{svs_name}: generated {patches.shape[0]} patches')
+        print(f'\n\t{svs_name}: generated {num_patches} patches')
 
-        # Pass to model for prediction
-        patch_masks = model.predict(patches, 
-                batch_size=args.batch_size,
-                verbose=1)
+        # Limit one-time predict to 5 GB data
+        patch_masks = np.zeros_like(patches)
+        num_patch_per_round = 5*1024**3 // \
+                (np.prod(patches.shape[1:]) * patches.itemsize)
+        num_rounds = int(np.ceil(num_patches / num_patch_per_round))
+        print(f'\tBeginning {num_rounds} rounds of prediction')
+        for ri in range(num_rounds):
+            start_p = ri * num_patch_per_round
+            end_p = min(num_patches, start_p + num_patch_per_round)
+
+            # Pass to model for prediction
+            patch_masks[start_p:end_p, ...] \
+                    = model.predict(patches[start_p:end_p, ...], 
+                            batch_size=args.batch_size,
+                            verbose=1)
         del patches
 
         # Reconstruct whole image from patch_masks
