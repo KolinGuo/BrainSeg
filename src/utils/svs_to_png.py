@@ -5,6 +5,8 @@ from tqdm import tqdm
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = None
 PIL_TILE_SIZE = 30000
+from typing import Any
+from nptyping import NDArray
 
 from .numpy_pil_helper import numpy_to_pil_rgb
 
@@ -25,7 +27,7 @@ format_to_dtype = {
     'dpcomplex': np.complex128,
 }
 
-def vips2numpy(vi):
+def vips2numpy(vi) -> NDArray[Any]:
     '''
     vips image to numpy array.
     
@@ -36,9 +38,10 @@ def vips2numpy(vi):
     '''
     return np.ndarray(buffer=vi.write_to_memory(),
                       dtype=format_to_dtype[vi.format],
-                      shape=[vi.height, vi.width, vi.bands])
+                      shape=(vi.height, vi.width, vi.bands))
 
-def svs_to_numpy(svs_file_path, save_png=False, save_png_dir=None):
+def svs_to_numpy(svs_file_path: str, 
+        save_png: bool=False, save_png_dir: str=None) -> NDArray[np.uint8]:
     '''
     Convert a svs file to a numpy array.
     
@@ -71,7 +74,7 @@ def svs_to_numpy(svs_file_path, save_png=False, save_png_dir=None):
 
     return img_arr.astype('uint8')
 
-def svs_to_png_batch(input_dir, output_dir):
+def svs_to_png_batch(input_dir: str, output_dir: str) -> None:
     '''
     Convert all svs files in input_dir to png images saved in output_dir.
     
@@ -97,7 +100,7 @@ def svs_to_png_batch(input_dir, output_dir):
         t.set_description_str("Image " + img_name + ', ' + '({}, {})'.format(width, height), refresh=False)
 
         # Iteration of creating PIL image tile by tile
-        iters = np.uint8(np.ceil([height / PIL_TILE_SIZE, width / PIL_TILE_SIZE]))
+        iters = np.ceil([height / PIL_TILE_SIZE, width / PIL_TILE_SIZE]).astype('int')
 
         orig_img = Image.new('RGB', (width, height))
         for row in range(iters[0]):
@@ -120,11 +123,11 @@ def svs_to_png_batch(input_dir, output_dir):
 if __name__ == '__main__':
     ### For testing ###
     import argparse
-    args = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()
 
-    args.add_argument("input_dir", type=str, help="Input Directory of .svs files")
-    args.add_argument("output_dir", type=str, help="Output Directory of .png files")
-    args = args.parse_args()
+    parser.add_argument("input_dir", type=str, help="Input Directory of .svs files")
+    parser.add_argument("output_dir", type=str, help="Output Directory of .png files")
+    args = parser.parse_args()
 
     print("Input directory: " + args.input_dir)
     print("Output directory: " + args.output_dir)

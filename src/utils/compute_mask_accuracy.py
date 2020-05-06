@@ -8,21 +8,24 @@ import argparse, argcomplete
 import numpy as np
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = None
+from typing import List, Dict, TypeVar, Any
+from numbers import Real
+Number = TypeVar('Number', bound=Real)
 
 class ComputeMaskAccuracy:
-    def __init__(self, args):
+    def __init__(self, args: argparse.Namespace):
         # Convert to abspath
-        args.truth_dir = os.path.abspath(args.truth_dir)
+        args.truth_dir = [os.path.abspath(p) for p in args.truth_dir]
         args.test_dir = os.path.abspath(args.test_dir)
         # Check if isdir
-        assert os.path.isdir(args.truth_dir), \
+        assert all([os.path.isdir(p) for p in args.truth_dir]), \
                 f'Groundtruth directory {args.truth_dir} does not exist!'
         assert os.path.isdir(args.test_dir), \
                 f'Testing directory {args.test_dir} does not exist!'
         self.compute_mask_accuracy(args)
 
     @staticmethod
-    def get_parser():
+    def get_parser() -> argparse.ArgumentParser:
         parser = argparse.ArgumentParser(
                 formatter_class=argparse.RawDescriptionHelpFormatter,
                 description='Compute Mask Accuracy\n\t'
@@ -31,10 +34,10 @@ class ComputeMaskAccuracy:
                 'By default the program will automatically determine\n\t\t'
                 'based on directory content and use IoU.')
 
-        parser.add_argument("truth_dir", type=str, 
-                help="Directory of groundtruth .png files")
         parser.add_argument("test_dir", type=str, 
                 help="Directory of testing .png files")
+        parser.add_argument("truth_dir", type=str, nargs='+',
+                help="Directories of groundtruth .png files")
 
         mask_parser = parser.add_argument_group(
                 'select the kinds of masks to compute accuracy')
@@ -64,35 +67,35 @@ class ComputeMaskAccuracy:
 
         return parser
 
-    def compute_mask_accuracy(self, args):
-        def _glob_dir(dir_path, glob_str):
+    def compute_mask_accuracy(self, args: argparse.Namespace):
+        def _glob_dir(dir_path: str, glob_str: str) -> List[str]:
             return sorted([p for p in glob.glob(os.path.join(dir_path, glob_str))])
 
-        def _glob_dir_exists(dir_path, glob_str):
+        def _glob_dir_exists(dir_path: str, glob_str: str) -> List[str]:
             paths = _glob_dir(dir_path, glob_str)
             assert paths, f'No {glob_str} found in {dir_path}'
             # Convert *-Grey.png to *-Gray.png
             # for f in *-Grey.png; do mv "$f" "${f%%-Grey.png}"-Gray.png; done
             return paths
 
-        def _assert_same_len_values_in_dict(in_dict):
+        def _assert_same_len_values_in_dict(in_dict: Dict):
             first_val = next(iter(in_dict.items()))[1]
             assert all(len(v) == len(first_val) for v in in_dict.values()), \
                     'Not the same number of masks: {}'.format(
                             {k: len(v) for k, v in in_dict.items()} )
 
-        def _get_image_names(test_paths):
+        def _get_image_names(test_paths: Dict[str, List[str]]) -> List[str]:
             mask, mask_paths = next(iter(test_paths.items()))
 
             return [p.split('/')[-1].split(glob_strs[mask][1:])[0] 
                     for p in mask_paths]
 
-        def _print_config(image_names, metrics):
+        def _print_config(image_names: List[str], metrics: List[str]) -> None:
             print(f'\nCompute mask accuracy for {len(image_names)} WSIs : '\
                     f'{[k for k in test_paths.keys()]}' )
             print(f'\tusing {metrics} metrics\n')
 
-        def _get_test_image_paths():
+        def _get_test_image_paths() -> OrderedDict[str, List[str]]:
             if any([args.background, args.gray, args.white, args.tissue]):
                 test_paths = OrderedDict()
                 if args.gray:
@@ -112,7 +115,7 @@ class ComputeMaskAccuracy:
                         })
 
                 # Remove empty lists
-                test_paths = {k: v for k, v in test_paths.items() if v}
+                test_paths = OrderedDict({k: v for k, v in test_paths.items() if v})
 
                 assert test_paths, 'No recognized mask file ' \
                         f'{list(glob_strs.values())} '\
@@ -121,7 +124,7 @@ class ComputeMaskAccuracy:
             _assert_same_len_values_in_dict(test_paths)
             return test_paths
 
-        def _get_accuracy_metrics():
+        def _get_accuracy_metrics() -> List[str]:
             if any([args.pixel_accuracy, args.iou, args.f1_score]):
                 metrics = []
                 if args.pixel_accuracy:
@@ -141,7 +144,7 @@ class ComputeMaskAccuracy:
                         'Mean_IoU', 'Frequency_Weighted_IoU']
             return metrics
 
-        def _compute_confusion_matrix(truth_path, test_path):
+        def _compute_confusion_matrix(truth_path: str, test_path: str) -> OrderedDict[str, Number]:
             truth_img = Image.open(truth_path)
             test_img  = Image.open(test_path)
 
@@ -149,7 +152,7 @@ class ComputeMaskAccuracy:
             if test_img.size != truth_img.size:
                 print(f'\tsize mismatch, upsampling "{test_path}" '\
                         f'from {test_img.size} to {truth_img.size}')
-                test_img = test_img.resize(truth_path.size)
+                test_img = test_img.resize(truth_img.size)
 
             truth_img_arr = np.array(truth_img)
             test_img_arr  = np.array(test_img)
@@ -171,7 +174,7 @@ class ComputeMaskAccuracy:
 
             return OrderedDict({'TP': TP, 'FP': FP, 'FN': FN, 'TN': TN})
 
-        def _compute_metrics(conf_dict, metrics):
+        def _compute_metrics(conf_dict: OrderedDict[str, Number], metrics: List[str]) -> None:
             total = conf_dict['TP'] + conf_dict['FP'] + \
                     conf_dict['FN'] + conf_dict['TN']
 
@@ -213,7 +216,7 @@ class ComputeMaskAccuracy:
                     conf_dict['F1_Score (%)'] = 2 * conf_dict['TP'] / \
                             (2 * conf_dict['TP'] + conf_dict['FP'] + conf_dict['FN']) * 100
 
-        def _get_mean(in_list):
+        def _get_mean(in_list: List[Number]) -> float:
             return sum(in_list) / len(in_list)
 
 
@@ -239,30 +242,38 @@ class ComputeMaskAccuracy:
         # total_results is a List of Dictionary
         total_results = []
         for i, image_name in enumerate(image_names):
-            image_results = OrderedDict({'Image Name': image_name})
+            image_results: OrderedDict[str, Any] = OrderedDict({'Image Name': image_name})
             print('[%3d/%3d]\tEvaluating masks of %s' 
                     % (i+1, len(image_names), image_name))
 
             for mi, mask_name in enumerate(test_paths.keys()):
                 if mask_name == 'tissue':
-                    truth_img_path = os.path.join(args.truth_dir, 
+                    truth_img_path = os.path.join(args.truth_dir[0], 
                             image_name+glob_strs['back'][1:])
+                    for truth_dir in args.truth_dir[1:]:
+                        if not os.path.exists(truth_img_path):
+                            truth_img_path = os.path.join(truth_dir, 
+                                    image_name+glob_strs['back'][1:])
                 else:
-                    truth_img_path = os.path.join(args.truth_dir, 
+                    truth_img_path = os.path.join(args.truth_dir[0], 
                             image_name+glob_strs[mask_name][1:])
+                    for truth_dir in args.truth_dir[1:]:
+                        if not os.path.exists(truth_img_path):
+                            truth_img_path = os.path.join(truth_dir, 
+                                    image_name+glob_strs[mask_name][1:])
                 test_img_path = os.path.join(args.test_dir, 
                         image_name+glob_strs[mask_name][1:])
 
                 conf_dict = \
-                        _compute_confusion_matrix(truth_img_path, test_img_path)
+                        _compute_confusion_matrix(truth_img_path, test_img_path) # type: ignore
 
                 # Modify confusion matrix if evaluating tissue masks
                 if mask_name == 'tissue':
-                    tissue_conf_dict = {
+                    tissue_conf_dict = OrderedDict({
                             'TP' : conf_dict['FP'],
                             'FP' : conf_dict['TP'],
                             'FN' : conf_dict['TN'],
-                            'TN' : conf_dict['FN'] }
+                            'TN' : conf_dict['FN'] })
                     conf_dict = tissue_conf_dict
 
                 # Compute accuracy metrics

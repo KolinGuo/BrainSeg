@@ -235,13 +235,6 @@
     "if __name__ == '__main__':\n",
     "    model = fcn_model(classes=3)"
    ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "metadata": {},
-   "outputs": [],
-   "source": []
   }
  ],
  "metadata": {
