@@ -1,4 +1,4 @@
-FROM nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04
+FROM nvidia/cuda:10.1-cudnn7-devel-ubuntu18.04
 
 #########################################
 # SECTION 1: Essentials                 #
@@ -139,3 +139,7 @@ WORKDIR ${REPOPATH}
 # Append the custom bashrc
 COPY bashrc /tmp/
 RUN cat /tmp/bashrc > /etc/bash.bashrc
+
+# Numpy Type Hinting
+RUN pip3 install nptyping
+
