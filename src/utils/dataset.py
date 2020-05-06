@@ -9,11 +9,136 @@ from typing import Tuple
 from nptyping import NDArray
 
 from .svs_to_png import svs_to_numpy
+from .numpy_pil_helper import numpy_to_pil_binary, numpy_to_pil_palette
 
 VAL_PROP = 1/3
 
+def save_predicted_masks(mask_arr: NDArray[np.uint8], save_dir: str, 
+        svs_name: str) -> None:
+    """
+    Save the predicted masks
+
+    Inputs:
+        mask_arr : whole image masks, (height, width), [0, 1, 2] = [back, gray, white]
+        save_dir : saving directory
+        svs_name : name of this WSI
+    """
+    save_mask_path       = os.path.join(save_dir, svs_name+'.png')
+    save_back_mask_path  = os.path.join(save_dir, svs_name+'-Background.png')
+    save_gray_mask_path  = os.path.join(save_dir, svs_name+'-Gray.png')
+    save_white_mask_path = os.path.join(save_dir, svs_name+'-White.png')
+
+    mask_img = numpy_to_pil_palette(mask_arr)
+    # For label 0, leave as black color
+    # For label 1, set to cyan color: R0G255B255
+    # For label 2, set to yellow color: R255G255B0
+    mask_img.putpalette([0, 0, 0, 0, 255, 255, 255, 255, 0])
+    mask_img.save(save_mask_path)
+    del mask_img
+
+    back_mask_img = numpy_to_pil_binary(mask_arr == 0)
+    gray_mask_img = numpy_to_pil_binary(mask_arr == 1)
+    white_mask_img = numpy_to_pil_binary(mask_arr == 2)
+    back_mask_img.save(save_back_mask_path)
+    gray_mask_img.save(save_gray_mask_path)
+    white_mask_img.save(save_white_mask_path)
+    del back_mask_img, gray_mask_img, white_mask_img
+
+def reconstruct_predicted_masks(patch_masks: NDArray[np.float32], 
+        patch_coords: NDArray[int]) -> NDArray[np.uint8]:
+    """
+    Reconstruct whole image masks from patch_masks
+
+    Inputs:
+        patch_masks  : predicted mask in patches, (num_patches, patch_size, patch_size, 3)
+        patch_coords : patch coordinate in original WSI
+    Output:
+        mask_arr : whole image masks, (height, width), [0, 1, 2] = [back, gray, white]
+    """
+    patch_masks = np.argmax(patch_masks, axis=-1)
+    assert patch_masks.shape[0] == patch_coords.shape[0], "Num_patches mismatch"
+
+    # The end_r and end_c of last patch_coords are height and width
+    height, width = patch_coords[-1, -2:]
+    num_patches = patch_coords.shape[0]
+    mask_arr = np.zeros((height, width), dtype=np.uint8)
+
+    # Reconstruct mask_arr based on patch_coords
+    for i in range(num_patches):
+        start_r, start_c, end_r, end_c = patch_coords[i, :]
+        mask_arr[start_r:end_r, start_c:end_c] = patch_masks[i, ...]
+
+    return mask_arr
+
+def generate_norm_patches(svs_path: str, patch_size: int) \
+        -> Tuple[NDArray[np.float32], NDArray[int]]:
+    """
+    Generate normalized patches of given svs file
+
+    Inputs:
+        svs_path   : svs file path
+        patch_size : patch size
+    Output:
+        patches      : normalized patches, (num_patches, patch_size, patch_size, 3)
+        patch_coords : patch coordinate in original WSI
+    """
+    svs_img_arr = svs_to_numpy(svs_path)
+    height, width, _ = svs_img_arr.shape
+
+    iters = np.ceil([height / patch_size, width / patch_size]).astype('int')
+    patches = np.zeros((iters[0]*iters[1], patch_size, patch_size, 3), 
+            dtype=np.float32)
+    # start_r, start_c, end_r, end_c
+    patch_coords = np.zeros((iters[0]*iters[1], 4), dtype=int)
+    idx = 0
+    for row in range(iters[0]):
+        for col in range(iters[1]):
+            # Get start and end pixel location
+            if row != iters[0] - 1:
+                start_r = row * patch_size
+                end_r   = start_r + patch_size
+            else:
+                start_r = height - patch_size
+                end_r   = height
+            if col != iters[1] - 1:
+                start_c = col * patch_size
+                end_c   = start_c + patch_size
+            else:
+                start_c = width - patch_size
+                end_c   = width
+
+            # Cut patches
+            patches[idx, ...] = svs_img_arr[start_r:end_r, start_c:end_c, :]
+            patch_coords[idx, ...] = [start_r, start_c, end_r, end_c]
+            idx += 1
+
+    return patches/255.0, patch_coords
+
+def extract_patches(img_arr, patch_size, keep_as_view=True):
+    M, N, D = img_arr.shape
+    p0, p1  = patch_size
+
+    if keep_as_view:
+        return img_arr.reshape(M//p0, p0, N//p1, p1, D).swapaxes(1,2)
+    else:
+        return img_arr.reshape(M//p0, p0, N//p1, p1, D).swapaxes(1,2)\
+                .reshape(-1, p0, p1, D)
+
 def generate_dataset(data_dir_AD: str, data_dir_control: str, 
         patch_size: int, force_regenerate: bool=False) -> Tuple[str, str, str]:
+    """
+    Generate a dataset
+
+    Inputs:
+        data_dir_AD      : AD .svs directory path
+        data_dir_control : control .svs directory path
+        patch_size       : patch size
+        force_regenerate : whether to force regenerate dataset or not
+    Outputs:
+        save_svs_file   : .txt file path of dataset descriptions
+        save_train_file : .npy file path of training data
+        save_val_file   : .npy file path of validation data
+    """
     print('Generating dataset')
 
     # Convert to abspath
