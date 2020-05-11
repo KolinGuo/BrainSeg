@@ -7,7 +7,7 @@ import numpy as np
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = None
 
-from utils.numpy_pil_helper import numpy_to_pil_binary
+from utils.numpy_pil_helper import numpy_to_pil_binary, numpy_to_pil_palette
 
 def grayscale_to_binary(args: argparse.Namespace) -> None:
     # Resolve path from os.getcwd()
@@ -97,6 +97,41 @@ def get_thumbnails(args: argparse.Namespace) -> None:
 
     print('Done!')
 
+def combine_truth_binary(args: argparse.Namespace) -> None:
+    # Resolve path from os.getcwd()
+    args.input_dir = os.path.abspath(args.input_dir)
+
+    # Get image_names in input_dir
+    img_names = [pathname.split('/')[-1].replace('-Gray.png', '') for pathname in 
+            glob.glob(os.path.join(args.input_dir, "*-Gray.png"))]
+    img_names = sorted(img_names)
+
+    print(f'Found {len(img_names)} images. '
+            f'Saving to same folder as {img_names[0]}.png')
+    for img_name in tqdm(img_names):
+        truth_back_path  = os.path.join(args.input_dir, img_name+'-Background.png')
+        truth_gray_path  = os.path.join(args.input_dir, img_name+'-Gray.png')
+        truth_white_path = os.path.join(args.input_dir, img_name+'-White.png')
+        save_mask_path   = os.path.join(args.input_dir, img_name+'.png')
+
+        truth_back_arr  = np.array(Image.open(truth_back_path))
+        truth_gray_arr  = np.array(Image.open(truth_gray_path))
+        truth_white_arr = np.array(Image.open(truth_white_path))
+
+        mask_arr = np.zeros_like(truth_back_arr, dtype='uint8')
+        mask_arr[truth_gray_arr] = 1
+        mask_arr[truth_white_arr] = 2
+
+        mask_img = numpy_to_pil_palette(mask_arr)
+        # For label 0, leave as black color
+        # For label 1, set to cyan color: R0G255B255
+        # For label 2, set to yellow color: R255G255B0
+        mask_img.putpalette([0, 0, 0, 0, 255, 255, 255, 255, 0])
+        mask_img.save(save_mask_path)
+        del mask_arr, mask_img
+
+    print('Done!')
+
 # For removing the extra line below subcommands in argparse
 class SubcommandHelpFormatter(argparse.RawDescriptionHelpFormatter):
     def _format_action(self, action):
@@ -133,6 +168,14 @@ def get_parser():
     p_gray2binary.add_argument('input_dir', type=str, 
             help='Input directory of PNG grayscale images (e.g. "./data/outputs")')
     p_gray2binary.set_defaults(func=grayscale_to_binary)
+
+    p_combinebinary = subparsers.add_parser('combine_truth_binary', 
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            description='Combine groundtruth binary images into palette images',
+            help='Combine groundtruth binary images into palette images')
+    p_combinebinary.add_argument('input_dir', type=str, 
+            help='Input directory of PNG binary groundtruth images (e.g. "./groundtruth")')
+    p_combinebinary.set_defaults(func=combine_truth_binary)
 
     return parser
 
