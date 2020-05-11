@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 # PYTHON_ARGCOMPLETE_OK
 from datetime import datetime
 from collections import OrderedDict     # for easy saving
@@ -84,18 +84,7 @@ class ComputeMaskAccuracy:
                     'Not the same number of masks: {}'.format(
                             {k: len(v) for k, v in in_dict.items()} )
 
-        def _get_image_names(test_paths: Dict[str, List[str]]) -> List[str]:
-            mask, mask_paths = next(iter(test_paths.items()))
-
-            return [p.split('/')[-1].split(glob_strs[mask][1:])[0] 
-                    for p in mask_paths]
-
-        def _print_config(image_names: List[str], metrics: List[str]) -> None:
-            print(f'\nCompute mask accuracy for {len(image_names)} WSIs : '\
-                    f'{[k for k in test_paths.keys()]}' )
-            print(f'\tusing {metrics} metrics\n')
-
-        def _get_test_image_paths() -> OrderedDict[str, List[str]]:
+        def _get_test_image_paths() -> "OrderedDict[str, List[str]]":
             if any([args.background, args.gray, args.white, args.tissue]):
                 test_paths = OrderedDict()
                 if args.gray:
@@ -124,6 +113,17 @@ class ComputeMaskAccuracy:
             _assert_same_len_values_in_dict(test_paths)
             return test_paths
 
+        def _get_image_names(test_paths: Dict[str, List[str]]) -> List[str]:
+            mask, mask_paths = next(iter(test_paths.items()))
+
+            return [p.split('/')[-1].split(glob_strs[mask][1:])[0] 
+                    for p in mask_paths]
+
+        def _print_config(image_names: List[str], metrics: List[str]) -> None:
+            print(f'\nCompute mask accuracy for {len(image_names)} WSIs : '\
+                    f'{[k for k in test_paths.keys()]}' )
+            print(f'\tusing {metrics} metrics\n')
+
         def _get_accuracy_metrics() -> List[str]:
             if any([args.pixel_accuracy, args.iou, args.f1_score]):
                 metrics = []
@@ -144,7 +144,7 @@ class ComputeMaskAccuracy:
                         'Mean_IoU', 'Frequency_Weighted_IoU']
             return metrics
 
-        def _compute_confusion_matrix(truth_path: str, test_path: str) -> OrderedDict[str, Number]:
+        def _compute_confusion_matrix(truth_path: str, test_path: str) -> "OrderedDict[str, Number]":
             truth_img = Image.open(truth_path)
             test_img  = Image.open(test_path)
 
@@ -174,7 +174,7 @@ class ComputeMaskAccuracy:
 
             return OrderedDict({'TP': TP, 'FP': FP, 'FN': FN, 'TN': TN})
 
-        def _compute_metrics(conf_dict: OrderedDict[str, Number], metrics: List[str]) -> None:
+        def _compute_metrics(conf_dict: "OrderedDict[str, Number]", metrics: List[str]) -> None:
             total = conf_dict['TP'] + conf_dict['FP'] + \
                     conf_dict['FN'] + conf_dict['TN']
 
@@ -286,6 +286,7 @@ class ComputeMaskAccuracy:
                             or k.startswith('Frequency_Weighted_IoU'):
                         image_results[k] = image_results[k] + v \
                                 if k in image_results else v
+
                     # Accumulate these accuracy metrics 
                     # and divided by n_class at the end
                     elif k.startswith('Mean_Accuracy') \
