@@ -196,15 +196,18 @@ class ComputeMaskAccuracy:
 
             # Specified metrics
             for metric in metrics:
-                if metric == 'Pixel_Accuracy':
+                if metric == 'IoU':
+                    conf_dict['IoU (%)'] = conf_dict['TP'] / \
+                            (conf_dict['TP'] + conf_dict['FP'] + conf_dict['FN']) * 100
+                elif metric == 'F1_Score':
+                    conf_dict['F1_Score (%)'] = 2 * conf_dict['TP'] / \
+                            (2 * conf_dict['TP'] + conf_dict['FP'] + conf_dict['FN']) * 100
+                elif metric == 'Pixel_Accuracy':
                     conf_dict['Pixel_Accuracy (%)'] = \
                             conf_dict['TP'] / total * 100
                 elif metric == 'Mean_Accuracy':
                     conf_dict['Mean_Accuracy (%)'] = \
                             conf_dict['TP'] / P * 100
-                elif metric == 'IoU':
-                    conf_dict['IoU (%)'] = conf_dict['TP'] / \
-                            (conf_dict['TP'] + conf_dict['FP'] + conf_dict['FN']) * 100
                 elif metric == 'Mean_IoU':
                     conf_dict['Mean_IoU (%)'] = conf_dict['TP'] / \
                             (conf_dict['TP'] + conf_dict['FP'] + conf_dict['FN']) * 100
@@ -212,9 +215,6 @@ class ComputeMaskAccuracy:
                     conf_dict['Frequency_Weighted_IoU (%)'] = P / total * \
                             conf_dict['TP'] / \
                             (conf_dict['TP'] + conf_dict['FP'] + conf_dict['FN']) * 100
-                elif metric == 'F1_Score':
-                    conf_dict['F1_Score (%)'] = 2 * conf_dict['TP'] / \
-                            (2 * conf_dict['TP'] + conf_dict['FP'] + conf_dict['FN']) * 100
 
         def _get_mean(in_list: List[Number]) -> float:
             return sum(in_list) / len(in_list)
@@ -299,6 +299,14 @@ class ComputeMaskAccuracy:
                     else:
                         image_results[str(mask_name.capitalize()+'-'+k)] = v
 
+                # Move these metrics to the end
+                for k, v in conf_dict.items():
+                    if k.startswith('Pixel_Accuracy') \
+                            or k.startswith('Frequency_Weighted_IoU') \
+                            or k.startswith('Mean_Accuracy') \
+                            or k.startswith('Mean_IoU'):
+                        image_results.move_to_end(k)
+
             total_results.append(image_results)
 
 
@@ -355,6 +363,7 @@ class ComputeMaskAccuracy:
             headers = ['Image Name']
             headers += [k for k in list(total_results[0].keys()) 
                     for m in metrics if m in k]
+            headers = list(dict.fromkeys(headers))  # remove duplicates
 
             tabular_str = '||' + 'c|' * len(headers) + '|'
 
