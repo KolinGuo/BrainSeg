@@ -38,7 +38,7 @@ def combine_annotation_tiles(args):
                 elements = re.split('\t|\n', line)
                 if elements[0] == "White Matter":
                     key_w = int(elements[1])
-                elif elements[0] == "Grey Matter":
+                elif elements[0] == "Gray Matter":
                     key_g = int(elements[1])
 
         # Get all tiles for this image
@@ -90,7 +90,7 @@ def combine_annotation_tiles(args):
     
         # Save the images
         save_img_back.save(os.path.join(SAVE_DIR, imagename + '-Background.png'))
-        save_img_grey.save(os.path.join(SAVE_DIR, imagename + '-Grey.png'))
+        save_img_grey.save(os.path.join(SAVE_DIR, imagename + '-Gray.png'))
         save_img_white.save(os.path.join(SAVE_DIR, imagename + '-White.png'))
         del save_img_back, save_img_grey, save_img_white
         gc.collect()
