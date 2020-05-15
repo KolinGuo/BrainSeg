@@ -23,6 +23,7 @@ torchvision==0.2.1
 tf-nightly-gpu
 tb-nightly
 tensorboard_plugin_profile
+tensorflow-datasets
 
-# Automatic Python-C++ bindings
+# Automatic Python-C++ binding
 cppyy

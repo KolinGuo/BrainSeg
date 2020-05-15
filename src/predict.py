@@ -11,9 +11,11 @@ from tensorflow.keras import optimizers, losses, metrics, callbacks
 from tensorflow.keras.mixed_precision import experimental as mixed_precision
 
 from train import SparseMeanIoU
+from models.FCN import fcn_model
 from models.UNet import unet_model_zero_pad
 from utils.dataset import generate_predict_dataset, reconstruct_predicted_masks, \
         save_predicted_masks, BrainSegPredictSequence
+
 
 def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -27,7 +29,7 @@ def get_parser() -> argparse.ArgumentParser:
             "e.g. ./cp-001-50.51.ckpt.index")
     ckpt_parser.add_argument("--ckpt-weights-only", action='store_true',
             help="Checkpoints will only save the model weights (Default: False)")
-    ckpt_parser.add_argument('--model', choices=['UNet'],
+    ckpt_parser.add_argument('--model', choices=['UNet', 'FCN'],
             help="Network model used for predicting")
 
     dataset_parser = parser.add_argument_group(
@@ -63,6 +65,8 @@ def predict(args):
     if args.ckpt_weights_only:
         if args.model == 'UNet':
             model = unet_model_zero_pad(output_channels=3)
+        elif args.model == 'FCN':
+            model = fcn_model(classes=3, bn=True)
         model.load_weights(args.ckpt_filepath).assert_existing_objects_matched()
         print('Model weights loaded')
     else:
