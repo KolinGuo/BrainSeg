@@ -4,6 +4,7 @@ import gc   # Garbage Collector interface
 import numpy as np
 from tqdm import tqdm
 from time import time
+from typing import Tuple, Any
 
 import cppyy
 cppyy.load_library('/BrainSeg/src/gSLICr/build/libgSLICr_lib.so')
@@ -20,11 +21,11 @@ from skimage.morphology import binary_dilation, convex_hull_image
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = None
 
-from .color_deconv import color_deconv
-from .numpy_pil_helper import *
+from color_deconv import color_deconv
+from numpy_pil_helper import *
 
-def parse_stain_mat(file_path):
-    '''
+def parse_stain_mat(file_path: str) -> Tuple["NDArray[float]", "NDArray[int]", int, "NDArray[float]"]:
+    """
     Parse stain matrix given a file path.
     
     Input:
@@ -34,7 +35,7 @@ def parse_stain_mat(file_path):
         stain_bk_rgb : 1-by-3 int np matrix, stain background RGB value.
         stain_idx    : integer, index of selected stain (row), 0/1/2.
         stain_thres  : 1-by-2 double np array, [min, max].
-    '''
+    """
     assert os.path.isfile(file_path), 'Input file "{}" does not exist!'.format(file_path)
     logger = logging.getLogger('parse_stain_mat')
 
@@ -95,8 +96,9 @@ def parse_stain_mat(file_path):
 
     return np.asarray(stain_mat), np.asarray(stain_bk_rgb), stain_idx, np.asarray(stain_thres)
 
-def scale_range(arr, new_min, new_max, old_min=None, old_max=None):
-    '''
+def scale_range(arr: "NDArray[float]", new_min: float, new_max: float, 
+        old_min: float=None, old_max: float=None) -> "NDArray[float]":
+    """
     Scale array to fit new range.
     
     Inputs:
@@ -107,15 +109,16 @@ def scale_range(arr, new_min, new_max, old_min=None, old_max=None):
         old_max : old maximum, default is None. Skip arr.max() if known.
     Output:
         out : numpy array after scaling, range [new_min, new_max].
-    '''
+    """
     if old_min is None:
         old_min = arr.min()
     if old_max is None:
         old_max = arr.max()
     return (arr - old_min) * (new_max - new_min) / (old_max - old_min) + new_min
 
-def apply_stain_thres_grayscale(arr, thres_min, thres_max):
-    '''
+def apply_stain_thres_grayscale(arr: "NDArray[float]", 
+        thres_min: float, thres_max: float) -> "NDArray[np.uint8]":
+    """
     Apply contrast threshold on stain channel.
     Pixels value < thres_min are set to black, pixels value > thres_max are set to white.
     Output is linearly mapped from [thres_min, thres_max] to [0, 255].
@@ -126,7 +129,7 @@ def apply_stain_thres_grayscale(arr, thres_min, thres_max):
         thres_max : double, maximum stain threshold.
     Output:
         out : numpy uint8 array, thresholded stain channel image, range [0, 255].
-    '''
+    """
     logger = logging.getLogger('apply_stain_thres_grayscale')
 
     arr[arr < thres_min] = thres_min
@@ -136,8 +139,9 @@ def apply_stain_thres_grayscale(arr, thres_min, thres_max):
 
     return scale_range(arr, 0, 255, thres_min, thres_max).astype('uint8')
 
-def apply_stain_thres_binary(arr, thres_min, thres_max):
-    '''
+def apply_stain_thres_binary(arr: "NDArray[float]", 
+        thres_min: float, thres_max: float) -> "NDArray[float]":
+    """
     Apply contrast threshold on stain channel.
     Pixels thres_min <= value <= thres_max are set to white, others are black.
     Output is binary: [0, 255].
@@ -148,7 +152,7 @@ def apply_stain_thres_binary(arr, thres_min, thres_max):
         thres_max : double, maximum stain threshold.
     Output:
         out : numpy uint8 array, thresholded stain channel image, range [0, 255].
-    '''
+    """
     logger = logging.getLogger('apply_stain_thres_binary')
 
     arr[(arr < thres_min) | (arr > thres_max)] = 0
@@ -158,8 +162,10 @@ def apply_stain_thres_binary(arr, thres_min, thres_max):
 
     return arr.astype('uint8')
 
-def run_slic_seg(img, n_segments=80000, n_iter=5, compactness=0.01, enforce_connectivity=True, slic_zero=True):
-    '''
+def run_slic_seg(img: "NDArray[np.uint8]", n_segments: int=80000, n_iter: int=5, 
+        compactness: float=0.01, enforce_connectivity: bool=True, 
+        slic_zero: bool=True) -> "NDArray[int]":
+    """
     Run gpu SLICO in C++.
 
     Parameters
@@ -194,7 +200,7 @@ def run_slic_seg(img, n_segments=80000, n_iter=5, compactness=0.01, enforce_conn
         Pascal Fua, and Sabine Süsstrunk, SLIC Superpixels Compared to
         State-of-the-art Superpixel Methods, TPAMI, May 2012.
     .. [2] http://ivrg.epfl.ch/research/superpixels#SLICO
-    '''
+    """
     assert img.dtype == np.uint8, 'Wrong numpy dtype, expected "np.uint8" but got "{}"'.format(img.dtype)
     assert img.ndim == 2, 'Wrong numpy dimension, expected "2" but got "{}" with shape {}'.format(img.ndim, img.shape)
     logger = logging.getLogger('run_slic_seg')
@@ -234,8 +240,9 @@ def run_slic_seg(img, n_segments=80000, n_iter=5, compactness=0.01, enforce_conn
     run_slic.__destruct__()
     return segments_slic
 
-def slic_mean_intensity_thres(img, segments_slic, thres=60):
-    '''
+def slic_mean_intensity_thres(img: "NDArray[np.uint8]", 
+        segments_slic: "NDArray[int]", thres: int=60) -> "NDArray[np.uint8]":
+    """
     Thresholding based on SLIC segments' mean intensity.
 
     Inputs:
@@ -244,7 +251,7 @@ def slic_mean_intensity_thres(img, segments_slic, thres=60):
         thres         : int, optional. Threshold value of mean intensity.
     Output:
         mask_img : 2D ndarray. Binary integer mask indicating segment labels.
-    '''
+    """
     assert img.dtype == np.uint8, 'Wrong numpy dtype, expected "np.uint8" but got "{}"'.format(img.dtype)
     assert img.ndim == 2, 'Wrong numpy dimension, expected "2" but got "{}" with shape {}'.format(img.ndim, img.shape)
     logger = logging.getLogger('slic_mean_intensity_thres')
@@ -256,8 +263,8 @@ def slic_mean_intensity_thres(img, segments_slic, thres=60):
             mask_img.flat[np.ravel_multi_index(region.coords.transpose(), mask_img.shape)] = 255
     return mask_img
 
-def get_connected_comp(mask_img, structure_size=9):
-    '''
+def get_connected_comp(mask_img: "NDArray[np.uint8]", structure_size: int=9) -> "NDArray[int]":
+    """
     Get connected components inside an image.
 
     Inputs: 
@@ -265,7 +272,7 @@ def get_connected_comp(mask_img, structure_size=9):
         structure_size : int, optional. Structure size for binary dilation before connected component labeling.
     Output:
         out : 2D ndarray. Integer mask indicating connected component labels.
-    '''
+    """
     assert mask_img.dtype == np.uint8, 'Wrong numpy dtype, expected "np.uint8" but got "{}"'.format(mask_img.dtype)
     assert mask_img.ndim == 2, 'Wrong numpy dimension, expected "2" but got "{}" with shape {}'.format(mask_img.ndim, mask_img.shape)
     logger = logging.getLogger('get_connected_comp')
@@ -273,8 +280,9 @@ def get_connected_comp(mask_img, structure_size=9):
 
     return label(binary_dilation(mask_img, selem=np.ones((structure_size, structure_size), dtype='int')), connectivity=2)
 
-def find_tissue(img, connected_comp, prop=0.2):
-    '''
+def find_tissue(img: "NDArray[np.uint8]", connected_comp: "NDArray[int]", 
+        prop: float=0.2) -> "NDArray[np.uint8]":
+    """
     Find the tissue component within a connected component map.
 
     Inputs:
@@ -283,7 +291,7 @@ def find_tissue(img, connected_comp, prop=0.2):
         prop           : float, optional. Proportional occupied area of the entire image to be considered as tissue.
     Output:
         tissue_img : 2D ndarray. Binary integer mask indicating the tissue.
-    '''
+    """
     assert img.dtype == np.uint8, 'Wrong numpy dtype, expected "np.uint8" but got "{}"'.format(img.dtype)
     assert img.ndim == 2, 'Wrong numpy dimension, expected "2" but got "{}" with shape {}'.format(img.ndim, img.shape)
     logger = logging.getLogger('find_tissue')
@@ -297,8 +305,9 @@ def find_tissue(img, connected_comp, prop=0.2):
             tissue_img.flat[np.ravel_multi_index(region.coords.transpose(), tissue_img.shape)] = 255
     return tissue_img
 
-def find_refine_boundaries(img, segments_slic, tissue_img):
-    '''
+def find_refine_boundaries(img: "NDArray[np.uint8]", segments_slic: "NDArray[int]", 
+        tissue_img: "NDArray[np.uint8]") -> "NDArray[bool]":
+    """
     Find and refine boundaries of the tissue image using convex hull.
 
     Inputs:
@@ -307,7 +316,7 @@ def find_refine_boundaries(img, segments_slic, tissue_img):
         tissue_img    : 2D ndarray. Binary integer mask indicating the tissue.
     Output:
         tissue_img : 2D bool ndarray. Binary integer refined mask indicating the tissue.
-    '''
+    """
     assert img.dtype == np.uint8, 'Wrong numpy dtype, expected "np.uint8" but got "{}"'.format(img.dtype)
     assert img.ndim == 2, 'Wrong numpy dimension, expected "2" but got "{}" with shape {}'.format(img.ndim, img.shape)
 
@@ -324,8 +333,9 @@ def find_refine_boundaries(img, segments_slic, tissue_img):
             tissue_img[min_r:max_r, min_c:max_c] = (outlier_hull_img * 1)
     return tissue_img.astype('bool')
 
-def separate_tissue(img_arr, stain_file_path, save_tissue_mask=False, save_tissue_mask_dir=None):
-    '''
+def separate_tissue(img_arr: "NDArray[np.uint8]", stain_file_path: str, 
+        save_tissue_mask: bool=False, save_tissue_mask_dir: str=None) -> Tuple["NDArray[bool]", "NDArray[float]"]:
+    """
     Separate tissue for all png files in input_dir and saved in output_dir.
     
     Input:
@@ -334,9 +344,9 @@ def separate_tissue(img_arr, stain_file_path, save_tissue_mask=False, save_tissu
         save_tissue_mask     : boolean, True for saving a png file, default is False.
         save_tissue_mask_dir : A String to saving directory path, default is None.
     Output:
-        out          : a numpy bool array representing a binary tissue mask, (..., ...).
-        timer_result : a numpy float array of each step timing results (seconds).
-    '''
+        out           : a numpy bool array representing a binary tissue mask, (..., ...).
+        timer_results : a numpy float array of each step timing results (seconds).
+    """
     assert img_arr.dtype == np.uint8, 'Wrong numpy dtype, expected "np.uint8" but got "{}"'.format(img_arr.dtype)
     assert img_arr.ndim == 3, 'Wrong numpy dimension, expected "3" but got "{}" with shape {}'.format(img_arr.ndim, img_arr.shape)
     assert img_arr.shape[2] == 3, 'Wrong number of channels, expected "3" but got with shape {}'.format(img_arr.shape)
@@ -407,20 +417,20 @@ def separate_tissue(img_arr, stain_file_path, save_tissue_mask=False, save_tissu
     # Manual garbage collect
     logger.debug('Collected %s garbages', gc.collect())
 
-    timer_result = np.array(timer_result)
-    timer_result = timer_result[1:] - timer_result[:-1]
+    timer_results = np.array(timer_result)
+    timer_results = timer_results[1:] - timer_results[:-1]
 
-    return tissue_img_arr, timer_result
+    return tissue_img_arr, timer_results
 
-def separate_tissue_png_batch(input_dir, stain_mat_dir, output_dir):
-    '''
+def separate_tissue_png_batch(input_dir: str, stain_mat_dir: str, output_dir: str) -> None:
+    """
     Separate tissue for all png files in input_dir and saved in output_dir.
     
     Inputs:
         input_dir  : A String to input directory containing png files.
         stain_mat_dir : A String to stain matrix directory containing txt files.
         output_dir : A String to output directory for saving tissue mask png files.
-    '''
+    """
     assert os.path.isdir(input_dir), 'Input directory "{}" does not exist!'.format(input_dir)
     assert os.path.isdir(stain_mat_dir), 'Stain matrix directory "{}" does not exist!'.format(stain_mat_dir)
 
@@ -445,12 +455,12 @@ def separate_tissue_png_batch(input_dir, stain_mat_dir, output_dir):
         t.set_description_str("Image " + img_name + ', ' + '({}, {})'.format(width, height), refresh=False)
 
         # Read in stain matrix
-        stain_file_idx = [ i for i, s in enumerate(stain_file_names) if s.startswith(img_name.split('.')[0]) ]
-        if len(stain_file_idx) != 1:
-            print('Found {} matched stain file whose name starts with "{}". Skipping this image...'.format(len(stain_file_idx), img_name.split('.')[0]))
+        stain_file_idxs = [ i for i, s in enumerate(stain_file_names) if s.startswith(img_name.split('.')[0]) ]
+        if len(stain_file_idxs) != 1:
+            print('Found {} matched stain file whose name starts with "{}". Skipping this image...'.format(len(stain_file_idxs), img_name.split('.')[0]))
             t.update()
             continue
-        stain_file_idx = stain_file_idx[0]
+        stain_file_idx = stain_file_idxs[0]
         stain_mat, stain_bk_rgb, stain_idx, stain_thres = parse_stain_mat(os.path.join(stain_mat_dir, stain_file_names[stain_file_idx]))
 
         # Separate stains
@@ -491,12 +501,12 @@ def separate_tissue_png_batch(input_dir, stain_mat_dir, output_dir):
 if __name__ == '__main__':
     ### For testing ###
     import argparse
-    args = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()
 
-    args.add_argument("input_dir", type=str, help="Input Directory of .png files (original WSI image)")
-    args.add_argument("stain_mat_dir", type=str, help="Directory of .txt files (stain matrices)")
-    args.add_argument("output_dir", type=str, help="Output Directory of .png files")
-    args = args.parse_args()
+    parser.add_argument("input_dir", type=str, help="Input Directory of .png files (original WSI image)")
+    parser.add_argument("stain_mat_dir", type=str, help="Directory of .txt files (stain matrices)")
+    parser.add_argument("output_dir", type=str, help="Output Directory of .png files")
+    args = parser.parse_args()
 
     print("Input directory: " + args.input_dir)
     print("Stain matrix directory: " + args.stain_mat_dir)

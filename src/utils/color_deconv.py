@@ -1,7 +1,7 @@
 import numpy as np
 
-def makeODLUT(max_val, n_entries=256):
-    '''
+def makeODLUT(max_val: int, n_entries: int=256) -> "NDArray[float]":
+    """
     Create an optical density lookup table, normalizing to the specified background value.
 
     Inputs:
@@ -9,15 +9,16 @@ def makeODLUT(max_val, n_entries=256):
         n_entries : number of values to include in the lookup table.
     Output:
         out : numpy array, optical density lookup table.
-    '''
+    """
     vals = np.arange(n_entries)     # pixel value 0-255
 
     OD_LUT = np.maximum(0, -np.log10(np.maximum(vals, 1)/max_val))
 
     return OD_LUT
 
-def color_deconv(rgb_img, stain_mat, stain_bk_rgb, stain_idx=None):
-    '''
+def color_deconv(rgb_img: "NDArray[np.uint8]", stain_mat: "NDArray[int]",
+        stain_bk_rgb: "NDArray[np.uint8]", stain_idx: int=None) -> "NDArray[float]":
+    """
     RGB to stain color space conversion using color deconvolution.
     Modified based on QuPath's implementation
     https://github.com/qupath/qupath/blob/d893d081524542ed7a27922949bd38ba6d795d30/qupath-core/src/main/java/qupath/lib/color/ColorTransformer.java#L398
@@ -29,7 +30,7 @@ def color_deconv(rgb_img, stain_mat, stain_bk_rgb, stain_idx=None):
         stain_idx    : integer, the selected stain index, default is None (first two stains, H&E).
     Output:
         out : numpy array, the image in stain color channel.
-    '''
+    """
 
     # Make OD lookup table for faster computation
     OD_LUT_red   = makeODLUT(stain_bk_rgb[0])
@@ -50,7 +51,7 @@ def color_deconv(rgb_img, stain_mat, stain_bk_rgb, stain_idx=None):
         out_shape = (rgb_img.shape[0], rgb_img.shape[1], 2)
         od_rgb_img = np.matmul(np.reshape(od_rgb_img, (-1, 3)), (stain_mat[:,0:2]), dtype='float64')
     else:   # get the selected stain
-        out_shape = (rgb_img.shape[0], rgb_img.shape[1])
+        out_shape = (rgb_img.shape[0], rgb_img.shape[1])    # type: ignore
         od_rgb_img = np.matmul(np.reshape(od_rgb_img, (-1, 3)), (stain_mat[:,stain_idx]), dtype='float64')
 
     return np.reshape(od_rgb_img, out_shape)

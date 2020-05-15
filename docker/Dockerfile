@@ -1,4 +1,6 @@
-FROM nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04
+FROM nvidia/cuda:10.1-cudnn7-devel-ubuntu18.04
+#FROM tensorflow/tensorflow:nightly-gpu-jupyter
+#FROM tensorflow/tensorflow:2.1.0-gpu-py3-jupyter
 
 #########################################
 # SECTION 1: Essentials                 #
@@ -64,9 +66,9 @@ RUN pip3 install argcomplete \
 ######################################
 ARG OPENCV_PATH=/usr/local/share/opencv
 ARG OPENCV_CONTRIB_PATH=/usr/local/share/opencv_contrib
-ARG OPENCV_VERSION=4.2.0
+ARG OPENCV_VERSION=4.3.0
 
-RUN apt-get -y install \
+RUN apt-get update && apt-get -y install \
     libglew-dev \
     libjpeg-dev libpng-dev libtiff-dev \
     libavcodec-dev libavformat-dev libswscale-dev libavresample-dev \
@@ -105,7 +107,7 @@ RUN echo -e "Make / Build OPENCV\n\n" && \
     -D CMAKE_INSTALL_PREFIX=${OPENCV_PATH} \
     -D OPENCV_EXTRA_MODULES_PATH=${OPENCV_CONTRIB_PATH}/modules \
     -D WITH_CUDA=ON \
-    -D CUDA_ARCH_BIN=6.2 \
+    -D CUDA_ARCH_BIN=6.1 \
     -D CUDA_ARCH_PTX="" \
     -D WITH_CUDNN=ON \
     -D WITH_CUBLAS=ON \
