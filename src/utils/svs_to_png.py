@@ -6,7 +6,6 @@ from PIL import Image
 Image.MAX_IMAGE_PIXELS = None
 PIL_TILE_SIZE = 30000
 from typing import Any
-from nptyping import NDArray
 
 from .numpy_pil_helper import numpy_to_pil_rgb
 
@@ -27,7 +26,7 @@ format_to_dtype = {
     'dpcomplex': np.complex128,
 }
 
-def vips2numpy(vi) -> NDArray[Any]:
+def vips2numpy(vi) -> "NDArray[Any]":
     '''
     vips image to numpy array.
     
@@ -41,7 +40,7 @@ def vips2numpy(vi) -> NDArray[Any]:
                       shape=(vi.height, vi.width, vi.bands))
 
 def svs_to_numpy(svs_file_path: str, 
-        save_png: bool=False, save_png_dir: str=None) -> NDArray[np.uint8]:
+        save_png: bool=False, save_png_dir: str=None) -> "NDArray[np.uint8]":
     '''
     Convert a svs file to a numpy array.
     

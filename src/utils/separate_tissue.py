@@ -5,7 +5,6 @@ import numpy as np
 from tqdm import tqdm
 from time import time
 from typing import Tuple, Any
-from nptyping import NDArray
 
 import cppyy
 cppyy.load_library('/BrainSeg/src/gSLICr/build/libgSLICr_lib.so')
@@ -25,7 +24,7 @@ Image.MAX_IMAGE_PIXELS = None
 from color_deconv import color_deconv
 from numpy_pil_helper import *
 
-def parse_stain_mat(file_path: str) -> Tuple[NDArray[float], NDArray[int], int, NDArray[float]]:
+def parse_stain_mat(file_path: str) -> Tuple["NDArray[float]", "NDArray[int]", int, "NDArray[float]"]:
     """
     Parse stain matrix given a file path.
     
@@ -97,8 +96,8 @@ def parse_stain_mat(file_path: str) -> Tuple[NDArray[float], NDArray[int], int, 
 
     return np.asarray(stain_mat), np.asarray(stain_bk_rgb), stain_idx, np.asarray(stain_thres)
 
-def scale_range(arr: NDArray[float], new_min: float, new_max: float, 
-        old_min: float=None, old_max: float=None) -> NDArray[float]:
+def scale_range(arr: "NDArray[float]", new_min: float, new_max: float, 
+        old_min: float=None, old_max: float=None) -> "NDArray[float]":
     """
     Scale array to fit new range.
     
@@ -117,8 +116,8 @@ def scale_range(arr: NDArray[float], new_min: float, new_max: float,
         old_max = arr.max()
     return (arr - old_min) * (new_max - new_min) / (old_max - old_min) + new_min
 
-def apply_stain_thres_grayscale(arr: NDArray[float], 
-        thres_min: float, thres_max: float) -> NDArray[np.uint8]:
+def apply_stain_thres_grayscale(arr: "NDArray[float]", 
+        thres_min: float, thres_max: float) -> "NDArray[np.uint8]":
     """
     Apply contrast threshold on stain channel.
     Pixels value < thres_min are set to black, pixels value > thres_max are set to white.
@@ -140,8 +139,8 @@ def apply_stain_thres_grayscale(arr: NDArray[float],
 
     return scale_range(arr, 0, 255, thres_min, thres_max).astype('uint8')
 
-def apply_stain_thres_binary(arr: NDArray[float], 
-        thres_min: float, thres_max: float) -> NDArray[float]:
+def apply_stain_thres_binary(arr: "NDArray[float]", 
+        thres_min: float, thres_max: float) -> "NDArray[float]":
     """
     Apply contrast threshold on stain channel.
     Pixels thres_min <= value <= thres_max are set to white, others are black.
@@ -163,9 +162,9 @@ def apply_stain_thres_binary(arr: NDArray[float],
 
     return arr.astype('uint8')
 
-def run_slic_seg(img: NDArray[np.uint8], n_segments: int=80000, n_iter: int=5, 
+def run_slic_seg(img: "NDArray[np.uint8]", n_segments: int=80000, n_iter: int=5, 
         compactness: float=0.01, enforce_connectivity: bool=True, 
-        slic_zero: bool=True) -> NDArray[int]:
+        slic_zero: bool=True) -> "NDArray[int]":
     """
     Run gpu SLICO in C++.
 
@@ -241,8 +240,8 @@ def run_slic_seg(img: NDArray[np.uint8], n_segments: int=80000, n_iter: int=5,
     run_slic.__destruct__()
     return segments_slic
 
-def slic_mean_intensity_thres(img: NDArray[np.uint8], 
-        segments_slic: NDArray[int], thres: int=60) -> NDArray[np.uint8]:
+def slic_mean_intensity_thres(img: "NDArray[np.uint8]", 
+        segments_slic: "NDArray[int]", thres: int=60) -> "NDArray[np.uint8]":
     """
     Thresholding based on SLIC segments' mean intensity.
 
@@ -264,7 +263,7 @@ def slic_mean_intensity_thres(img: NDArray[np.uint8],
             mask_img.flat[np.ravel_multi_index(region.coords.transpose(), mask_img.shape)] = 255
     return mask_img
 
-def get_connected_comp(mask_img: NDArray[np.uint8], structure_size: int=9) -> NDArray[int]:
+def get_connected_comp(mask_img: "NDArray[np.uint8]", structure_size: int=9) -> "NDArray[int]":
     """
     Get connected components inside an image.
 
@@ -281,8 +280,8 @@ def get_connected_comp(mask_img: NDArray[np.uint8], structure_size: int=9) -> ND
 
     return label(binary_dilation(mask_img, selem=np.ones((structure_size, structure_size), dtype='int')), connectivity=2)
 
-def find_tissue(img: NDArray[np.uint8], connected_comp: NDArray[int], 
-        prop: float=0.2) -> NDArray[np.uint8]:
+def find_tissue(img: "NDArray[np.uint8]", connected_comp: "NDArray[int]", 
+        prop: float=0.2) -> "NDArray[np.uint8]":
     """
     Find the tissue component within a connected component map.
 
@@ -306,8 +305,8 @@ def find_tissue(img: NDArray[np.uint8], connected_comp: NDArray[int],
             tissue_img.flat[np.ravel_multi_index(region.coords.transpose(), tissue_img.shape)] = 255
     return tissue_img
 
-def find_refine_boundaries(img: NDArray[np.uint8], segments_slic: NDArray[int], 
-        tissue_img: NDArray[np.uint8]) -> NDArray[bool]:
+def find_refine_boundaries(img: "NDArray[np.uint8]", segments_slic: "NDArray[int]", 
+        tissue_img: "NDArray[np.uint8]") -> "NDArray[bool]":
     """
     Find and refine boundaries of the tissue image using convex hull.
 
@@ -334,8 +333,8 @@ def find_refine_boundaries(img: NDArray[np.uint8], segments_slic: NDArray[int],
             tissue_img[min_r:max_r, min_c:max_c] = (outlier_hull_img * 1)
     return tissue_img.astype('bool')
 
-def separate_tissue(img_arr: NDArray[np.uint8], stain_file_path: str, 
-        save_tissue_mask: bool=False, save_tissue_mask_dir: str=None) -> Tuple[NDArray[bool], NDArray[float]]:
+def separate_tissue(img_arr: "NDArray[np.uint8]", stain_file_path: str, 
+        save_tissue_mask: bool=False, save_tissue_mask_dir: str=None) -> Tuple["NDArray[bool]", "NDArray[float]"]:
     """
     Separate tissue for all png files in input_dir and saved in output_dir.
     

@@ -1,7 +1,6 @@
 import numpy as np
-from nptyping import NDArray
 
-def makeODLUT(max_val: int, n_entries: int=256) -> NDArray[float]:
+def makeODLUT(max_val: int, n_entries: int=256) -> "NDArray[float]":
     """
     Create an optical density lookup table, normalizing to the specified background value.
 
@@ -17,8 +16,8 @@ def makeODLUT(max_val: int, n_entries: int=256) -> NDArray[float]:
 
     return OD_LUT
 
-def color_deconv(rgb_img: NDArray[np.uint8], stain_mat: NDArray[int],
-        stain_bk_rgb: NDArray[np.uint8], stain_idx: int=None) -> NDArray[float]:
+def color_deconv(rgb_img: "NDArray[np.uint8]", stain_mat: "NDArray[int]",
+        stain_bk_rgb: "NDArray[np.uint8]", stain_idx: int=None) -> "NDArray[float]":
     """
     RGB to stain color space conversion using color deconvolution.
     Modified based on QuPath's implementation

@@ -6,14 +6,13 @@ Image.MAX_IMAGE_PIXELS = None
 import tensorflow as tf
 from tensorflow.keras.utils import Sequence
 from typing import Tuple, List
-from nptyping import NDArray
 
 from .svs_to_png import svs_to_numpy
 from .numpy_pil_helper import numpy_to_pil_binary, numpy_to_pil_palette
 
 VAL_PROP = 1/3
 
-def save_predicted_masks(mask_arr: NDArray[np.uint8], save_dir: str, 
+def save_predicted_masks(mask_arr: "NDArray[np.uint8]", save_dir: str, 
         svs_name: str) -> None:
     """
     Save the predicted masks
@@ -44,8 +43,8 @@ def save_predicted_masks(mask_arr: NDArray[np.uint8], save_dir: str,
     white_mask_img.save(save_white_mask_path)
     del back_mask_img, gray_mask_img, white_mask_img
 
-def reconstruct_predicted_masks(patch_masks: NDArray[np.float32], 
-        patch_coords: NDArray[int]) -> NDArray[np.uint8]:
+def reconstruct_predicted_masks(patch_masks: "NDArray[np.float32]", 
+        patch_coords: "NDArray[int]") -> "NDArray[np.uint8]":
     """
     Reconstruct whole image masks from patch_masks
 
@@ -71,7 +70,7 @@ def reconstruct_predicted_masks(patch_masks: NDArray[np.float32],
     return mask_arr
 
 def generate_norm_patches(svs_path: str, patch_size: int) \
-        -> Tuple[NDArray[np.float32], NDArray[int]]:
+        -> Tuple["NDArray[np.float32]", "NDArray[int]"]:
     """
     Generate normalized patches of given svs file
 
@@ -436,22 +435,22 @@ def generate_dataset(data_dir_AD: str, data_dir_control: str,
     return save_svs_file, save_train_file, save_val_file
 
 class BrainSegPredictSequence(Sequence):
-    def __init__(self, image_paths: NDArray[str], batch_size: int) -> None:
+    def __init__(self, image_paths: "NDArray[str]", batch_size: int) -> None:
         self.image_paths = image_paths
         self.batch_size  = batch_size
 
     def __len__(self) -> int:
         return int(np.ceil(len(self.image_paths) / self.batch_size))
 
-    def __getitem__(self, idx: int) -> NDArray[np.float32]:
+    def __getitem__(self, idx: int) -> "NDArray[np.float32]":
         batch_x = self.image_paths[idx * self.batch_size : 
                 (idx+1) * self.batch_size]
         return np.array([np.array(Image.open(p)) for p in batch_x], 
                     dtype=np.float32) / 255.0
 
 class BrainSegSequence(Sequence):
-    def __init__(self, image_paths: NDArray[str],
-            mask_paths: NDArray[str], batch_size: int) -> None:
+    def __init__(self, image_paths: "NDArray[str]",
+            mask_paths: "NDArray[str]", batch_size: int) -> None:
         self.image_paths = image_paths
         self.mask_paths  = mask_paths
         self.batch_size  = batch_size
@@ -459,7 +458,7 @@ class BrainSegSequence(Sequence):
     def __len__(self) -> int:
         return int(np.ceil(len(self.image_paths) / self.batch_size))
 
-    def __getitem__(self, idx: int) -> Tuple[NDArray[np.float32], NDArray[np.float32]]:
+    def __getitem__(self, idx: int) -> Tuple["NDArray[np.float32]", "NDArray[np.float32]"]:
         batch_x = self.image_paths[idx * self.batch_size : 
                 (idx+1) * self.batch_size]
         batch_y = self.mask_paths[idx * self.batch_size : 
