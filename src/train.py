@@ -163,7 +163,9 @@ def train(args):
             initial_epoch=initial_epoch,
             validation_data=val_dataset,
             validation_steps=len(val_dataset) // args.val_subsplits,
-            callbacks=[cp_callback, tb_callback])
+            callbacks=[cp_callback, tb_callback],
+            workers=os.cpu_count(),
+            use_multiprocessing=True)
 
     print('Training finished!')
 

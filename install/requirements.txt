@@ -8,24 +8,22 @@ matplotlib
 tqdm
 pytest
 virtualenv
+pydot   # For tf.keras.utils.plot_model
 
 # Image Processing
 Pillow
 scikit-image
 scikit-learn
 pyvips
-opencv-python==4.1.2.30
 PyWavelets
 
 # ML Framework
 torch==0.3.1
 torchvision==0.2.1
-tensorflow
-tf-nightly
-keras
+tf-nightly-gpu
+tb-nightly
+tensorboard_plugin_profile
+tensorflow-datasets
 
 # Automatic Python-C++ binding
 cppyy
-tensorflow-datasets
-mypy  # static type checker
-pydot   # For tf.keras.utils.plot_model

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 # PYTHON_ARGCOMPLETE_OK
 from datetime import datetime
 from collections import OrderedDict     # for easy saving
@@ -84,18 +84,7 @@ class ComputeMaskAccuracy:
                     'Not the same number of masks: {}'.format(
                             {k: len(v) for k, v in in_dict.items()} )
 
-        def _get_image_names(test_paths: Dict[str, List[str]]) -> List[str]:
-            mask, mask_paths = next(iter(test_paths.items()))
-
-            return [p.split('/')[-1].split(glob_strs[mask][1:])[0] 
-                    for p in mask_paths]
-
-        def _print_config(image_names: List[str], metrics: List[str]) -> None:
-            print(f'\nCompute mask accuracy for {len(image_names)} WSIs : '\
-                    f'{[k for k in test_paths.keys()]}' )
-            print(f'\tusing {metrics} metrics\n')
-
-        def _get_test_image_paths() -> OrderedDict[str, List[str]]:
+        def _get_test_image_paths() -> "OrderedDict[str, List[str]]":
             if any([args.background, args.gray, args.white, args.tissue]):
                 test_paths = OrderedDict()
                 if args.gray:
@@ -124,6 +113,17 @@ class ComputeMaskAccuracy:
             _assert_same_len_values_in_dict(test_paths)
             return test_paths
 
+        def _get_image_names(test_paths: Dict[str, List[str]]) -> List[str]:
+            mask, mask_paths = next(iter(test_paths.items()))
+
+            return [p.split('/')[-1].split(glob_strs[mask][1:])[0] 
+                    for p in mask_paths]
+
+        def _print_config(image_names: List[str], metrics: List[str]) -> None:
+            print(f'\nCompute mask accuracy for {len(image_names)} WSIs : '\
+                    f'{[k for k in test_paths.keys()]}' )
+            print(f'\tusing {metrics} metrics\n')
+
         def _get_accuracy_metrics() -> List[str]:
             if any([args.pixel_accuracy, args.iou, args.f1_score]):
                 metrics = []
@@ -144,7 +144,7 @@ class ComputeMaskAccuracy:
                         'Mean_IoU', 'Frequency_Weighted_IoU']
             return metrics
 
-        def _compute_confusion_matrix(truth_path: str, test_path: str) -> OrderedDict[str, Number]:
+        def _compute_confusion_matrix(truth_path: str, test_path: str) -> "OrderedDict[str, Number]":
             truth_img = Image.open(truth_path)
             test_img  = Image.open(test_path)
 
@@ -174,7 +174,7 @@ class ComputeMaskAccuracy:
 
             return OrderedDict({'TP': TP, 'FP': FP, 'FN': FN, 'TN': TN})
 
-        def _compute_metrics(conf_dict: OrderedDict[str, Number], metrics: List[str]) -> None:
+        def _compute_metrics(conf_dict: "OrderedDict[str, Number]", metrics: List[str]) -> None:
             total = conf_dict['TP'] + conf_dict['FP'] + \
                     conf_dict['FN'] + conf_dict['TN']
 
@@ -196,15 +196,18 @@ class ComputeMaskAccuracy:
 
             # Specified metrics
             for metric in metrics:
-                if metric == 'Pixel_Accuracy':
+                if metric == 'IoU':
+                    conf_dict['IoU (%)'] = conf_dict['TP'] / \
+                            (conf_dict['TP'] + conf_dict['FP'] + conf_dict['FN']) * 100
+                elif metric == 'F1_Score':
+                    conf_dict['F1_Score (%)'] = 2 * conf_dict['TP'] / \
+                            (2 * conf_dict['TP'] + conf_dict['FP'] + conf_dict['FN']) * 100
+                elif metric == 'Pixel_Accuracy':
                     conf_dict['Pixel_Accuracy (%)'] = \
                             conf_dict['TP'] / total * 100
                 elif metric == 'Mean_Accuracy':
                     conf_dict['Mean_Accuracy (%)'] = \
                             conf_dict['TP'] / P * 100
-                elif metric == 'IoU':
-                    conf_dict['IoU (%)'] = conf_dict['TP'] / \
-                            (conf_dict['TP'] + conf_dict['FP'] + conf_dict['FN']) * 100
                 elif metric == 'Mean_IoU':
                     conf_dict['Mean_IoU (%)'] = conf_dict['TP'] / \
                             (conf_dict['TP'] + conf_dict['FP'] + conf_dict['FN']) * 100
@@ -212,9 +215,6 @@ class ComputeMaskAccuracy:
                     conf_dict['Frequency_Weighted_IoU (%)'] = P / total * \
                             conf_dict['TP'] / \
                             (conf_dict['TP'] + conf_dict['FP'] + conf_dict['FN']) * 100
-                elif metric == 'F1_Score':
-                    conf_dict['F1_Score (%)'] = 2 * conf_dict['TP'] / \
-                            (2 * conf_dict['TP'] + conf_dict['FP'] + conf_dict['FN']) * 100
 
         def _get_mean(in_list: List[Number]) -> float:
             return sum(in_list) / len(in_list)
@@ -286,6 +286,7 @@ class ComputeMaskAccuracy:
                             or k.startswith('Frequency_Weighted_IoU'):
                         image_results[k] = image_results[k] + v \
                                 if k in image_results else v
+
                     # Accumulate these accuracy metrics 
                     # and divided by n_class at the end
                     elif k.startswith('Mean_Accuracy') \
@@ -297,6 +298,14 @@ class ComputeMaskAccuracy:
                     # Append mask_name as a prefix of conf_dict.keys()
                     else:
                         image_results[str(mask_name.capitalize()+'-'+k)] = v
+
+                # Move these metrics to the end
+                for k, v in conf_dict.items():
+                    if k.startswith('Pixel_Accuracy') \
+                            or k.startswith('Frequency_Weighted_IoU') \
+                            or k.startswith('Mean_Accuracy') \
+                            or k.startswith('Mean_IoU'):
+                        image_results.move_to_end(k)
 
             total_results.append(image_results)
 
@@ -354,6 +363,7 @@ class ComputeMaskAccuracy:
             headers = ['Image Name']
             headers += [k for k in list(total_results[0].keys()) 
                     for m in metrics if m in k]
+            headers = list(dict.fromkeys(headers))  # remove duplicates
 
             tabular_str = '||' + 'c|' * len(headers) + '|'
 
