@@ -1,4 +1,5 @@
 data/*
+baseline_code/weights/*
 #data/outputs/heatmaps
 #!data/outputs
 #!data/outputs/heatmaps_png

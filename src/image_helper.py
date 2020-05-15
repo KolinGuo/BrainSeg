@@ -131,7 +131,7 @@ def combine_truth_binary(args: argparse.Namespace) -> None:
         del mask_arr, mask_img
 
     print('Done!')
-
+    
 # For removing the extra line below subcommands in argparse
 class SubcommandHelpFormatter(argparse.RawDescriptionHelpFormatter):
     def _format_action(self, action):
