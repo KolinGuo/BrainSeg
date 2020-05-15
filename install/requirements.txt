@@ -8,7 +8,6 @@ matplotlib
 tqdm
 pytest
 virtualenv
-mypy  # static type checker
 pydot   # For tf.keras.utils.plot_model
 
 # Image Processing
@@ -21,6 +20,9 @@ PyWavelets
 # ML Framework
 torch==0.3.1
 torchvision==0.2.1
+tf-nightly-gpu
+tb-nightly
+tensorboard_plugin_profile
 
 # Automatic Python-C++ bindings
 cppyy

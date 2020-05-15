@@ -1,3 +1,8 @@
 .git
+checkpoints
 data
 docker
+notebook
+qupath
+src
+tf_logs

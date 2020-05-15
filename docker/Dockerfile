@@ -1,84 +1,6 @@
-FROM tensorflow/tensorflow:nightly-gpu-jupyter
-#FROM nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04
+FROM nvidia/cuda:10.1-cudnn7-devel-ubuntu18.04
+#FROM tensorflow/tensorflow:nightly-gpu-jupyter
 #FROM tensorflow/tensorflow:2.1.0-gpu-py3-jupyter
-
-#########################################
-# SECTION -1: Install CUDA related      #
-#########################################
-# From nvidia/cuda:10.1-cudnn7-devel-ubuntu18.04
-ENV NCCL_VERSION 2.4.8
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    cuda-libraries-$CUDA_PKG_VERSION \
-    cuda-nvtx-$CUDA_PKG_VERSION \
-    libcublas10=10.2.1.243-1 \
-    libnccl2=$NCCL_VERSION-1+cuda10.1 && \
-    apt-mark hold libnccl2 && \
-    rm -rf /var/lib/apt/lists/*
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    cuda-nvml-dev-$CUDA_PKG_VERSION \
-    cuda-command-line-tools-$CUDA_PKG_VERSION \
-    cuda-libraries-dev-$CUDA_PKG_VERSION \
-    cuda-minimal-build-$CUDA_PKG_VERSION \
-    libnccl-dev=$NCCL_VERSION-1+cuda10.1 \
-    libcublas-dev=10.2.1.243-1 && \
-    rm -rf /var/lib/apt/lists/*
-
-ENV LIBRARY_PATH /usr/local/cuda/lib64/stubs
-
-ENV CUDNN_VERSION 7.6.5.32
-LABEL com.nvidia.cudnn.version="${CUDNN_VERSION}"
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libcudnn7=$CUDNN_VERSION-1+cuda10.1 \
-    libcudnn7-dev=$CUDNN_VERSION-1+cuda10.1 && \
-    apt-mark hold libcudnn7 && \
-    rm -rf /var/lib/apt/lists/*
-
-#########################################
-# SECTION 0: Install OpenGL             #
-#########################################
-RUN dpkg --add-architecture i386 && \
-    apt-get update && apt-get install -y --no-install-recommends \
-        libxau6 libxau6:i386 \
-        libxdmcp6 libxdmcp6:i386 \
-        libxcb1 libxcb1:i386 \
-        libxext6 libxext6:i386 \
-        libx11-6 libx11-6:i386 && \
-    rm -rf /var/lib/apt/lists/*
-
-# nvidia-container-runtime
-ENV NVIDIA_VISIBLE_DEVICES \
-        ${NVIDIA_VISIBLE_DEVICES:-all}
-ENV NVIDIA_DRIVER_CAPABILITIES \
-        ${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics,compat32,utility
-
-RUN echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf && \
-    echo "/usr/local/nvidia/lib64" >> /etc/ld.so.conf.d/nvidia.conf
-
-# Required for non-glvnd setups.
-ENV LD_LIBRARY_PATH /usr/lib/x86_64-linux-gnu:/usr/lib/i386-linux-gnu${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}:/usr/local/nvidia/lib:/usr/local/nvidia/lib64
-
-RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
-
-# Install glvnd runtime
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      libglvnd0 libglvnd0:i386 \
-      libgl1 libgl1:i386 \
-      libglx0 libglx0:i386 \
-      libegl1 libegl1:i386 \
-      libgles2 libgles2:i386 && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install glvnd devel
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        pkg-config \
-      libglvnd-dev libglvnd-dev:i386 \
-      libgl1-mesa-dev libgl1-mesa-dev:i386 \
-      libegl1-mesa-dev libegl1-mesa-dev:i386 \
-      libgles2-mesa-dev libgles2-mesa-dev:i386 && \
-    rm -rf /var/lib/apt/lists/*
 
 #########################################
 # SECTION 1: Essentials                 #
@@ -132,13 +54,8 @@ RUN pip3 install jupyter_contrib_nbextensions \
   && pip3 install jupyter_nbextensions_configurator \
   && jupyter nbextensions_configurator enable
 
-# Install TF nightly build
-RUN pip3 uninstall -y tensorflow tensorboard
-RUN pip3 uninstall -y tensorflow tensorboard
-RUN pip3 install -U tf-nightly-gpu tb-nightly tensorboard_plugin_profile
-
 # Jupyter runtime folder
-#RUN mkdir /.local && chmod a+rwx /.local
+RUN mkdir /.local && chmod a+rwx /.local
 
 # Install argcomplete for auto tab completing argparse in Python
 RUN pip3 install argcomplete \
@@ -224,6 +141,3 @@ WORKDIR ${REPOPATH}
 # Append the custom bashrc
 COPY bashrc /tmp/
 RUN cat /tmp/bashrc > /etc/bash.bashrc
-
-# Numpy Type Hinting
-RUN pip3 install nptyping
