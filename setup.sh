@@ -186,10 +186,7 @@ build_docker_container() {
   echo -e "\nBuilding a container $CONTNAME from the image $IMGNAME..."
   docker create -it --name=$CONTNAME \
     -u $(id -u):$(id -g) \
-    --group-add $(getent group brainseg | awk -F ":" '{ print $3 }') \
     -v "$SCRIPTPATH":/$REPONAME \
-    -v /home/kolinguo/BrainSeg/data/box_control:/home/kolinguo/BrainSeg/data/box_control \
-    -v /home/kolinguo/BrainSeg/data/box_Ab:/home/kolinguo/BrainSeg/data/box_Ab \
     -v /tmp/.X11-unix:/tmp/.X11-unix \
     -v /etc/localtime:/etc/localtime:ro \
     -e DISPLAY=$DISPLAY \
