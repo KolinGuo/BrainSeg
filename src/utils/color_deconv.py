@@ -1,5 +1,4 @@
 import numpy as np
-from nptyping import NDArray
 
 def makeODLUT(max_val: int, n_entries: int=256) -> "NDArray[float]":
     """
