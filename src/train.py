@@ -155,7 +155,7 @@ def train(args):
             write_graph=True,
             write_images=False,
             update_freq='batch',
-            profile_batch=2)
+            profile_batch='100,120')
 
     # Create a TerminateOnNaN callback
     nan_callback = callbacks.TerminateOnNaN()
