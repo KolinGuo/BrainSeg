@@ -46,7 +46,7 @@ RUN python3 -m pip install --upgrade pip
 
 # Install Python libraries
 COPY install/requirements.txt /tmp/
-RUN pip3 install -r /tmp/requirements.txt
+RUN pip3 install -U -r /tmp/requirements.txt
 
 # Install jupyter notebook extensions (code folding)
 RUN pip3 install jupyter_contrib_nbextensions \
