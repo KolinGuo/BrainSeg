@@ -157,13 +157,16 @@ def train(args):
             update_freq='batch',
             profile_batch=2)
 
+    # Create a TerminateOnNaN callback
+    nan_callback = callbacks.TerminateOnNaN()
+
     model.fit(train_dataset, 
             epochs=args.num_epochs,
             steps_per_epoch=len(train_dataset),
             initial_epoch=initial_epoch,
             validation_data=val_dataset,
             validation_steps=len(val_dataset) // args.val_subsplits,
-            callbacks=[cp_callback, tb_callback],
+            callbacks=[cp_callback, tb_callback, nan_callback],
             workers=os.cpu_count(),
             use_multiprocessing=True)
 
