@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
 from datetime import datetime
-import os
+import os, io
 import argparse, argcomplete
+import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
@@ -10,6 +11,7 @@ from tensorflow.keras import optimizers, losses, metrics, callbacks
 from tensorflow.keras.mixed_precision import experimental as mixed_precision
 
 from models.UNet import unet_model_zero_pad
+from models.metrics import *
 from utils.dataset import generate_dataset, BrainSegSequence
 
 def get_parser() -> argparse.ArgumentParser:
@@ -54,12 +56,66 @@ def get_parser() -> argparse.ArgumentParser:
 
     return parser
 
-class SparseMeanIoU(metrics.MeanIoU):
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        y_pred = tf.argmax(y_pred, axis=-1)
-        return super().update_state(y_true, y_pred, sample_weight)
+def plot_confusion_matrix(cm, class_names):
+    """Returns a matplotlib figure containing the plotted confusion matrix.
+
+    Args:
+        cm (array, shape = [n, n]): a confusion matrix of integer classes
+        class_names (array, shape = [n]): String names of the integer classes
+    """
+    figure = plt.figure(figsize=(5, 5), dpi=100)
+    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+    plt.title("Confusion matrix")
+    plt.colorbar()
+    tick_marks = np.arange(len(class_names))
+    plt.xticks(tick_marks, class_names, rotation=45)
+    plt.yticks(tick_marks, class_names)
+
+    # Normalize the confusion matrix.
+    prop = np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], 
+            decimals=4) * 100
+
+    # Use white text if squares are dark; otherwise black.
+    threshold = cm.max() / 2.
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            color = "white" if cm[i, j] > threshold else "black"
+            plt.text(j, i, '%.2f%%\n%.2e' % (prop[i, j], cm[i, j]), 
+                    horizontalalignment="center", color=color)
+
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    return figure
+
+def plot_to_image(figure):
+    """Converts the matplotlib plot specified by 'figure' to a PNG image and
+    returns it. The supplied figure is closed and inaccessible after this call."""
+    # Save the plot to a PNG in memory.
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    # Closing the figure prevents it from being displayed directly inside
+    # the notebook.
+    plt.close(figure)
+    buf.seek(0)
+    # Convert PNG buffer to TF image
+    image = tf.io.decode_png(buf.getvalue())
+    # Add the batch dimension
+    image = tf.expand_dims(image, 0)
+    return image
 
 def train(args):
+    def log_confusion_matrix(epoch, logs):
+        figure = plot_confusion_matrix(logs['cm'], class_names=class_names)
+        cm_image = plot_to_image(figure)
+        with cm_image_writer.as_default():
+            tf.summary.image("Train Confusion Matrix", cm_image, step=epoch)
+
+        figure = plot_confusion_matrix(logs['val_cm'], class_names=class_names)
+        cm_image = plot_to_image(figure)
+        with cm_image_writer.as_default():
+            tf.summary.image("Val Confusion Matrix", cm_image, step=epoch)
+
     # Check if GPU is available
     print("Num GPUs Available: %d", len(tf.config.list_physical_devices('GPU')))
 
@@ -86,10 +142,13 @@ def train(args):
     #model.summary(120)
     #print(keras.backend.floatx())
 
+    class_names = ['Background', 'Gray Matter', 'White Matter']
     model.compile(optimizer=optimizers.Adam(),
             loss=losses.SparseCategoricalCrossentropy(from_logits=True),
             metrics=[metrics.SparseCategoricalAccuracy(),
-                SparseMeanIoU(num_classes=3, name='meaniou')])
+                SparseMeanIoU(num_classes=3, name='IoU/Mean'),
+                SparseConfusionMatrix(num_classes=3, name='cm')] \
+                    + SparseIoU.get_iou_metrics(num_classes=3, class_names=class_names))
 
     # Create another checkpoint/log folder for model.name and timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -111,7 +170,9 @@ def train(args):
             print('Model weights loaded')
         else:
             model = keras.models.load_model(args.ckpt_filepath,
-                    custom_objects={'SparseMeanIoU': SparseMeanIoU})
+                    custom_objects={
+                        'SparseMeanIoU': SparseMeanIoU, 
+                        'SparseConfusionMatrix': SparseConfusionMatrix})
             print('Full model (weights + optimizer state) loaded')
 
         initial_epoch = int(args.ckpt_filepath.split('/')[-1]\
@@ -155,7 +216,11 @@ def train(args):
             write_graph=True,
             write_images=False,
             update_freq='batch',
-            profile_batch='100,120')
+            profile_batch=(10, 15))
+
+    # Create a Lambda callback for per-class meaniou
+    cm_image_writer = tf.summary.create_file_writer(args.log_dir + "/cm")
+    cm_callback = callbacks.LambdaCallback(on_epoch_end=log_confusion_matrix)
 
     # Create a TerminateOnNaN callback
     nan_callback = callbacks.TerminateOnNaN()
@@ -166,7 +231,7 @@ def train(args):
             initial_epoch=initial_epoch,
             validation_data=val_dataset,
             validation_steps=len(val_dataset) // args.val_subsplits,
-            callbacks=[cp_callback, tb_callback, nan_callback],
+            callbacks=[cp_callback, tb_callback, nan_callback, cm_callback],
             workers=os.cpu_count(),
             use_multiprocessing=True)
 
