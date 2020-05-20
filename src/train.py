@@ -172,7 +172,8 @@ def train(args):
             model = keras.models.load_model(args.ckpt_filepath,
                     custom_objects={
                         'SparseMeanIoU': SparseMeanIoU, 
-                        'SparseConfusionMatrix': SparseConfusionMatrix})
+                        'SparseConfusionMatrix': SparseConfusionMatrix,
+                        'SparseIoU': SparseIoU})
             print('Full model (weights + optimizer state) loaded')
 
         initial_epoch = int(args.ckpt_filepath.split('/')[-1]\
