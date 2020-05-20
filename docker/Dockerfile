@@ -141,3 +141,6 @@ WORKDIR ${REPOPATH}
 # Append the custom bashrc
 COPY bashrc /tmp/
 RUN cat /tmp/bashrc > /etc/bash.bashrc
+
+# For Tensorboard profiler
+ENV LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
