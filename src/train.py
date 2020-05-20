@@ -216,7 +216,7 @@ def train(args):
             write_graph=True,
             write_images=False,
             update_freq='batch',
-            profile_batch=(10, 15))
+            profile_batch='100, 120')
 
     # Create a Lambda callback for per-class meaniou
     cm_image_writer = tf.summary.create_file_writer(args.log_dir + "/cm")
