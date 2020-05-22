@@ -1,5 +1,5 @@
 import tensorflow as tf
-import keras
+from tensorflow import keras
 
 # upsample function utilizing tf.keras.layers.Conv2D, size=4, strides=2, default set to be 2x resolution
 # upsample function, the size is determined by factor of images, strides is 2 * factor - factor % 2
