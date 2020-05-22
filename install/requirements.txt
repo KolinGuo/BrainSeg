@@ -25,7 +25,6 @@ tf-nightly-gpu
 tb-nightly
 tensorboard_plugin_profile
 tfds-nightly
-keras
 
 # Automatic Python-C++ binding
 cppyy
