@@ -5,7 +5,7 @@ from PIL import Image
 Image.MAX_IMAGE_PIXELS = None
 import tensorflow as tf
 from tensorflow.keras.utils import Sequence
-from typing import Tuple, List
+from typing import Tuple, List, Dict
 
 from .svs_to_png import svs_to_numpy
 from .numpy_pil_helper import numpy_to_pil_binary, numpy_to_pil_palette
@@ -192,6 +192,44 @@ def generate_predict_dataset(data_dirs: List[str], patch_size: int) \
         del svs_img_arr
     return svs_paths, save_dir
 
+def compute_class_weights(save_svs_file: str, class_freq_dataset='train') \
+        -> Dict[int, float]:
+    """
+    Computing class weights
+
+    Inputs:
+        save_svs_file : .txt file path of dataset descriptions and class freq
+        class_freq_dataset : the dataset of class frequency to use
+    Outputs:
+        class_weights : dictionary mapping class indices to a weight value
+    """
+    search_pattern = ''
+    if class_freq_dataset == 'train':
+        search_pattern = 'Train Class Frequency'
+    elif class_freq_dataset == 'val':
+        search_pattern = 'Val Class Frequency'
+    elif class_freq_dataset == 'total':
+        search_pattern = 'Total Class Frequency'
+    else:
+        raise ValueError('Unknown class_freq_dataset')
+
+    class_freq = []
+    with open(save_svs_file, 'r') as f:
+        for line in f:
+            if line.startswith(search_pattern):
+                class_freq_str = line.strip().split(':')[1].strip(' []')
+                class_freq = [int(x) for x in class_freq_str.split()]
+                break
+    assert class_freq, f'No "Train Class Frequency" found in "{save_svs_file}"'
+    class_freq = np.array(class_freq)
+
+    # Inverse class frequency
+    class_freq = 1. / class_freq
+
+    class_weights = class_freq / class_freq.sum()
+    class_weights = {k:v for k, v in enumerate(class_weights)}
+    return class_weights
+
 def generate_dataset(data_dir_AD: str, data_dir_control: str, 
         patch_size: int, force_regenerate: bool=False) -> Tuple[str, str, str]:
     """
@@ -282,6 +320,7 @@ def generate_dataset(data_dir_AD: str, data_dir_control: str,
             f'saving at "{save_dir}"')
 
     found_new_svs = False
+    total_class_freq = []
     for i, svs_path in enumerate(tqdm(svs_AD_paths + svs_control_paths)):
         # Get corresponding groundtruth path
         truth_paths      = (truth_AD_paths + truth_control_paths)[i]
@@ -291,13 +330,16 @@ def generate_dataset(data_dir_AD: str, data_dir_control: str,
 
         svs_name = svs_path.split('/')[-1].replace('.svs', '')
 
-        save_img_dir = os.path.join(save_dir, 'images', svs_name)
-        save_mask_dir = os.path.join(save_dir, 'masks', svs_name)
+        save_img_dir         = os.path.join(save_dir, 'images', svs_name)
+        save_mask_dir        = os.path.join(save_dir, 'masks', svs_name)
+        save_class_freq_file = os.path.join(save_mask_dir, 'class_freq.npy')
         if not os.path.exists(save_img_dir):
             os.makedirs(save_img_dir)
         if not os.path.exists(save_mask_dir):
             os.makedirs(save_mask_dir)
         else:   # Skip if already generated for this WSI
+            class_freq = np.load(save_class_freq_file)
+            total_class_freq += [list(class_freq)]
             continue
 
         found_new_svs = True
@@ -315,6 +357,9 @@ def generate_dataset(data_dir_AD: str, data_dir_control: str,
         mask_arr = np.zeros_like(truth_back_arr, dtype='uint8')
         mask_arr[truth_gray_arr] = 1
         mask_arr[truth_white_arr] = 2
+        class_freq = \
+            [truth_back_arr.sum(), truth_gray_arr.sum(), truth_white_arr.sum()]
+        class_freq = np.array(class_freq, dtype='int')
         del truth_back_arr, truth_gray_arr, truth_white_arr
 
         iters = np.ceil([height / patch_size, width / patch_size]).astype('int')
@@ -349,11 +394,17 @@ def generate_dataset(data_dir_AD: str, data_dir_control: str,
                     svs_name+f'_({start_r},{start_c},{end_r},{end_c}).png'),
                     transparency=0)
         del svs_img_arr, mask_arr
+        # Save class_freq
+        np.save(save_class_freq_file, class_freq)
+        total_class_freq += [list(class_freq)]
+
+    # Convert to numpy array
+    total_class_freq = np.array(total_class_freq, dtype='int')
 
     ##### Split into train and validation dataset #####
-    save_svs_file = os.path.join(save_dir, 'dataset.txt')
+    save_svs_file   = os.path.join(save_dir, 'dataset.txt')
     save_train_file = os.path.join(save_dir, 'train.npy')
-    save_val_file = os.path.join(save_dir, 'val.npy')
+    save_val_file   = os.path.join(save_dir, 'val.npy')
 
     # Return if no need for regenerate dataset
     if not force_regenerate and not found_new_svs \
@@ -386,7 +437,11 @@ def generate_dataset(data_dir_AD: str, data_dir_control: str,
     val_control_paths   = [p for i, p in enumerate(svs_control_paths) 
             if i in val_control_idx]
 
+    # For indexing total_class_freq
+    train_idx = np.append(train_AD_idx, (train_control_idx + len(svs_AD_paths)))
+    val_idx   = np.append(val_AD_idx, (val_control_idx + len(svs_AD_paths)))
     with open(save_svs_file, 'w') as f:
+        # Write dataset split
         f.write(f'AD WSI: Train = {train_AD_count}, '
                 f'Validation = {val_AD_count}\n')
         f.write('\tTrain: \n\t\t{}\n\tVal: \n\t\t{}\n'\
@@ -397,6 +452,17 @@ def generate_dataset(data_dir_AD: str, data_dir_control: str,
         f.write('\tTrain: \n\t\t{}\n\tVal: \n\t\t{}\n'\
                 .format('\n\t\t'.join(train_control_paths), 
                     '\n\t\t'.join(val_control_paths)))
+        # Write class frequency
+        f.write('Class Frequency: [back, gray, white]\n')
+        for i, svs_path in enumerate(svs_AD_paths + svs_control_paths):
+            svs_name = svs_path.split('/')[-1].replace('.svs', '')
+            f.write(f'\t{svs_name}: {total_class_freq[i]}\n')
+        f.write('Train Class Frequency: {}\n'\
+                .format(np.sum(total_class_freq[train_idx], axis=0)))
+        f.write('Val Class Frequency: {}\n'\
+                .format(np.sum(total_class_freq[val_idx], axis=0)))
+        f.write('Total Class Frequency: {}\n'\
+                .format(np.sum(total_class_freq, axis=0)))
 
     print(f'WSI AD: train = {train_AD_count}, val = {val_AD_count}')
     print(f'WSI Control: train = {train_control_count}, val = {val_control_count}')
