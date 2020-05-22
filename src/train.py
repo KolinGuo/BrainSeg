@@ -12,7 +12,7 @@ from tensorflow.keras.mixed_precision import experimental as mixed_precision
 
 from models.UNet import unet_model_zero_pad
 from models.metrics import *
-from utils.dataset import generate_dataset, BrainSegSequence
+from utils.dataset import generate_dataset, BrainSegSequence, compute_class_weights
 
 def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -127,6 +127,8 @@ def train(args):
     save_svs_file, save_train_file, save_val_file \
             = generate_dataset(args.data_dir_AD, args.data_dir_control, 
                     args.patch_size, force_regenerate=False)
+
+    class_weights = compute_class_weights(save_svs_file)
 
     train_paths = np.load(save_train_file)
     val_paths = np.load(save_val_file)
