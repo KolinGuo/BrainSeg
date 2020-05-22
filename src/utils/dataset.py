@@ -192,16 +192,16 @@ def generate_predict_dataset(data_dirs: List[str], patch_size: int) \
         del svs_img_arr
     return svs_paths, save_dir
 
-def compute_class_weights(save_svs_file: str, class_freq_dataset='train') \
-        -> Dict[int, float]:
+def compute_class_weight(save_svs_file: str, class_freq_dataset='train') \
+        -> "NDArray[np.float]":
     """
-    Computing class weights
+    Computing class weight
 
     Inputs:
         save_svs_file : .txt file path of dataset descriptions and class freq
         class_freq_dataset : the dataset of class frequency to use
     Outputs:
-        class_weights : dictionary mapping class indices to a weight value
+        class_weights : ndarray of class weights at each class index
     """
     search_pattern = ''
     if class_freq_dataset == 'train':
@@ -227,7 +227,7 @@ def compute_class_weights(save_svs_file: str, class_freq_dataset='train') \
     class_freq = 1. / class_freq
 
     class_weights = class_freq / class_freq.sum()
-    class_weights = {k:v for k, v in enumerate(class_weights)}
+    #class_weights = {k:v for k, v in enumerate(class_weights)}
     return class_weights
 
 def generate_dataset(data_dir_AD: str, data_dir_control: str, 
@@ -532,7 +532,7 @@ class BrainSegSequence(Sequence):
         return np.array([np.array(Image.open(p)) for p in batch_x], 
                     dtype=np.float32) / 255.0, \
                 np.array([np.array(Image.open(p)) for p in batch_y],
-                    dtype=np.float32)
+                    dtype=np.int32)
 
 if __name__ == '__main__':
     ### For Testing ###
