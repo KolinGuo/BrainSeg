@@ -37,9 +37,12 @@ def get_parser() -> argparse.ArgumentParser:
 
     train_parser = parser.add_argument_group(
             'Training configurations')
-    train_parser.add_argument('--loss-func', choices=['SCCE', 'BSCCE'],
-            default='BSCCE',
+    train_parser.add_argument('--loss-func', 
+            choices=['SCCE', 'BSCCE', 'Sparse_Focal', 'Balanced_Sparse_Focal'],
+            default='Sparse_Focal',
             help="Loss functions for training")
+    train_parser.add_argument("--focal-loss-gamma", type=float, default=2.0,
+            help="Gamma parameter for focal loss (Default: 2.0)")
     train_parser.add_argument("--batch-size", type=int, default=32,
             help="Batch size of patches")
     train_parser.add_argument("--num-epochs", type=int, default=20,
@@ -153,7 +156,8 @@ def train(args):
 
     class_names = ['Background', 'Gray Matter', 'White Matter']
     model.compile(optimizer=optimizers.Adam(),
-            loss=get_loss_func(args.loss_func, class_weight),
+            loss=get_loss_func(args.loss_func, class_weight, 
+                gamma=args.focal_loss_gamma),
             metrics=[metrics.SparseCategoricalAccuracy(),
                 SparseMeanIoU(num_classes=3, name='IoU/Mean'),
                 SparseConfusionMatrix(num_classes=3, name='cm')] \
