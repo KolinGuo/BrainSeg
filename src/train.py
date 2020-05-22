@@ -10,16 +10,18 @@ from tensorflow import keras
 from tensorflow.keras import optimizers, losses, metrics, callbacks
 from tensorflow.keras.mixed_precision import experimental as mixed_precision
 
+from models.FCN import fcn_model
 from models.UNet import unet_model_zero_pad
 from models.metrics import *
-from utils.dataset import generate_dataset, BrainSegSequence, compute_class_weights
+from models.losses import *
+from utils.dataset import generate_dataset, BrainSegSequence, compute_class_weight
 
 def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
             formatter_class=argparse.RawDescriptionHelpFormatter,
             description='Training\n\t')
 
-    parser.add_argument('model', choices=['UNet'],
+    parser.add_argument('model', choices=['UNet', 'FCN'],
             help="Network model used for training")
 
     dataset_parser = parser.add_argument_group(
@@ -35,6 +37,9 @@ def get_parser() -> argparse.ArgumentParser:
 
     train_parser = parser.add_argument_group(
             'Training configurations')
+    train_parser.add_argument('--loss-func', choices=['SCCE', 'BSCCE'],
+            default='BSCCE',
+            help="Loss functions for training")
     train_parser.add_argument("--batch-size", type=int, default=32,
             help="Batch size of patches")
     train_parser.add_argument("--num-epochs", type=int, default=20,
@@ -128,7 +133,7 @@ def train(args):
             = generate_dataset(args.data_dir_AD, args.data_dir_control, 
                     args.patch_size, force_regenerate=False)
 
-    class_weights = compute_class_weights(save_svs_file)
+    class_weight = compute_class_weight(save_svs_file)
 
     train_paths = np.load(save_train_file)
     val_paths = np.load(save_val_file)
@@ -141,12 +146,14 @@ def train(args):
     # Create network model
     if args.model == 'UNet':
         model = unet_model_zero_pad(output_channels=3)
+    elif args.model == 'FCN':
+        model = fcn_model(classes=3, bn=True)
     #model.summary(120)
     #print(keras.backend.floatx())
 
     class_names = ['Background', 'Gray Matter', 'White Matter']
     model.compile(optimizer=optimizers.Adam(),
-            loss=losses.SparseCategoricalCrossentropy(from_logits=True),
+            loss=get_loss_func(args.loss_func, class_weight),
             metrics=[metrics.SparseCategoricalAccuracy(),
                 SparseMeanIoU(num_classes=3, name='IoU/Mean'),
                 SparseConfusionMatrix(num_classes=3, name='cm')] \
@@ -207,7 +214,7 @@ def train(args):
 
     # Create a callback that saves the model's weights every 1 epoch
     ckpt_path = os.path.join(args.ckpt_dir, 
-            'cp-{epoch:03d}-{val_meaniou:.2f}.ckpt')
+            'cp-{epoch:03d}-{val_IoU/Mean:.4f}.ckpt')
     cp_callback = callbacks.ModelCheckpoint(filepath=ckpt_path,
             verbose=1, 
             save_weights_only=args.ckpt_weights_only,
