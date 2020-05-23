@@ -128,7 +128,7 @@ def train(args):
     print("Num GPUs Available: %d", len(tf.config.list_physical_devices('GPU')))
 
     # Set tf.keras mixed precision to float16
-    policy = mixed_precision.Policy('mixed_float16')
+    policy = mixed_precision.Policy('float32')
     mixed_precision.set_policy(policy)
 
     # Create dataset
