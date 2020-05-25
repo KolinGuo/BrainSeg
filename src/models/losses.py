@@ -50,7 +50,7 @@ def focal_loss(y_true, y_pred, gamma=2.0, from_logits=False, axis=-1):
     else:
         y_pred /= tf.math.reduce_sum(y_pred, axis=axis, keepdims=True)
 
-    epsilon = tf.constant(K.epsilon())
+    epsilon = tf.constant(K.epsilon(), y_pred.dtype.base_dtype)
     y_pred = tf.clip_by_value(y_pred, epsilon, 1 - epsilon)
 
     cce = -1 * y_true * tf.math.log(y_pred)
