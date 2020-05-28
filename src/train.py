@@ -27,9 +27,13 @@ def get_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description='Training\n\t')
 
-    main_parser.add_argument(
+    model_parser = main_parser.add_argument_group(
+        'Model configurations')
+    model_parser.add_argument(
         'model',
-        choices=['UNet_No_Pad', 'UNet_Zero_Pad', 'FCN'],
+        choices=['UNet_No_Pad', 'UNet_No_Pad_3Layer',
+                 'UNet_Zero_Pad', 'UNet_Zero_Pad_3Layer',
+                 'FCN'],
         help="Network model used for training")
 
     dataset_parser = main_parser.add_argument_group(
@@ -43,6 +47,9 @@ def get_parser() -> argparse.ArgumentParser:
     dataset_parser.add_argument(
         "--patch-size", type=int, default=1024,
         help="Patch size (Default: 1024)")
+    dataset_parser.add_argument(
+        "--val-subsplits", type=int, default=1,
+        help="Number to divide total number of val data for each epoch")
 
     train_parser = main_parser.add_argument_group(
         'Training configurations')
@@ -60,9 +67,6 @@ def get_parser() -> argparse.ArgumentParser:
     train_parser.add_argument(
         "--num-epochs", type=int, default=20,
         help="Number of training epochs")
-    train_parser.add_argument(
-        "--val-subsplits", type=int, default=1,
-        help="Number to divide total number of val data for each epoch")
     train_parser.add_argument(
         "--ckpt-weights-only", action='store_true',
         help="Checkpoints will only save the model weights (Default: False)")
@@ -92,8 +96,12 @@ def get_model(model_name: str) -> keras.Model:
     """Get the keras.Model based on input"""
     if model_name == 'UNet_No_Pad':
         return unet_model_no_pad(output_channels=3)
+    if model_name == 'UNet_No_Pad_3Layer':
+        return unet_model_no_pad(output_channels=3, unet_layers=3)
     if model_name == 'UNet_Zero_Pad':
         return unet_model_zero_pad(output_channels=3)
+    if model_name == 'UNet_Zero_Pad_3Layer':
+        return unet_model_zero_pad(output_channels=3, unet_layers=3)
     if model_name == 'FCN':
         return fcn_model(classes=3, bn=True)
     raise ValueError('Unknown model')
