@@ -534,6 +534,24 @@ class BrainSegSequence(Sequence):
                 np.array([np.array(Image.open(p)) for p in batch_y],
                     dtype=np.int32)
 
+def load_dataset(save_svs_file: str, save_train_file: str, save_val_file: str,
+                 batch_size: int) \
+        -> Tuple[Sequence, Sequence, "NDArray[np.float]"]:
+    # Compute class weights
+    class_weight = compute_class_weight(save_svs_file)
+
+    # Load train_paths and val_paths
+    train_paths = np.load(save_train_file)
+    val_paths = np.load(save_val_file)
+
+    # Create train_dataset and val_dataset
+    train_dataset = BrainSegSequence(train_paths[:, 0], train_paths[:, 1],
+                                     batch_size)
+    val_dataset = BrainSegSequence(val_paths[:, 0], val_paths[:, 1],
+                                   batch_size)
+
+    return train_dataset, val_dataset, class_weight
+
 if __name__ == '__main__':
     ### For Testing ###
     generate_dataset(sys.argv[1], sys.argv[2], int(sys.argv[3]))
