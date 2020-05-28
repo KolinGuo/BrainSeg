@@ -21,7 +21,8 @@ def get_parser() -> argparse.ArgumentParser:
             formatter_class=argparse.RawDescriptionHelpFormatter,
             description='Training\n\t')
 
-    parser.add_argument('model', choices=['UNet', 'FCN'],
+    parser.add_argument('model',
+            choices=['UNet_No_Pad', 'UNet_Zero_Pad', 'FCN'],
             help="Network model used for training")
 
     dataset_parser = parser.add_argument_group(
@@ -63,6 +64,14 @@ def get_parser() -> argparse.ArgumentParser:
             help="Directory for saving tensorboard logs")
 
     return parser
+
+def get_model(model_name: str) -> keras.Model:
+    if model_name == 'UNet_No_Pad':
+        return unet_model_no_pad(output_channels=3)
+    if model_name == 'UNet_Zero_Pad':
+        return unet_model_zero_pad(output_channels=3)
+    if model_name == 'FCN':
+        return fcn_model(classes=3, bn=True)
 
 def plot_confusion_matrix(cm, class_names):
     """Returns a matplotlib figure containing the plotted confusion matrix.
@@ -147,10 +156,7 @@ def train(args):
             args.batch_size)
 
     # Create network model
-    if args.model == 'UNet':
-        model = unet_model_zero_pad(output_channels=3)
-    elif args.model == 'FCN':
-        model = fcn_model(classes=3, bn=True)
+    model = get_model(args.model)
     #model.summary(120)
     #print(keras.backend.floatx())
 
