@@ -194,8 +194,8 @@ def get_cm_callback(log_dir: str, class_names: List[str]) -> callbacks.Callback:
 def train(args) -> None:
     """Start training based on args input"""
     # Check if GPU is available
-    print("\nNum GPUs Available: %d\n",
-          len(tf.config.list_physical_devices('GPU')))
+    print("\nNum GPUs Available: %d\n"\
+          % (len(tf.config.list_physical_devices('GPU'))))
 
     # Set tf.keras mixed precision to float16
     set_keras_mixed_precision_policy('mixed_float16')
