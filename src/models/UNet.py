@@ -1,20 +1,28 @@
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers, optimizers, losses
+"""UNet Model"""
+# pylint: disable=invalid-name
 from typing import Tuple
 
-def unet_model_no_pad(output_channels: int, 
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+
+def unet_model_no_pad(output_channels: int,
                       unet_layers=4, model_name='UNet_No_Pad') -> keras.Model:
-    def _Conv_BN_ReLU(inputs: tf.Tensor, filters: int, 
-            kernel_size: Tuple[int, int], name: str) -> tf.Tensor:
-        x = layers.Conv2D(filters, kernel_size, strides=1, padding='valid', name=name)(inputs)
+    """Build and return a UNet model with no padding"""
+    def _conv_bn_relu(inputs: tf.Tensor, filters: int,
+                      kernel_size: Tuple[int, int], name: str) -> tf.Tensor:
+        """Single conv + batchnorm + relu layer"""
+        x = layers.Conv2D(filters, kernel_size, strides=1,
+                          padding='valid', name=name)(inputs)
         x = layers.BatchNormalization(name=name+'_BN')(x)
         outputs = layers.ReLU(name=name+'_relu')(x)
         return outputs
 
-    def _UpConv_BN_ReLU(inputs: tf.Tensor, filters: int, 
-            kernel_size: Tuple[int, int], name: str) -> tf.Tensor:
-        x = layers.Conv2DTranspose(filters, kernel_size, strides=2, padding='valid', name=name)(inputs)
+    def _upconv_bn_relu(inputs: tf.Tensor, filters: int,
+                        kernel_size: Tuple[int, int], name: str) -> tf.Tensor:
+        """Single upconv + batchnorm + relu layer"""
+        x = layers.Conv2DTranspose(filters, kernel_size, strides=2,
+                                   padding='valid', name=name)(inputs)
         x = layers.BatchNormalization(name=name+'_BN')(x)
         outputs = layers.ReLU(name=name+'_relu')(x)
         return outputs
@@ -27,41 +35,56 @@ def unet_model_no_pad(output_channels: int,
 
     # Downsampling steps
     for i in range(unet_layers):
-        x = _Conv_BN_ReLU(x, first_block_filters*2**i, (3, 3), f'Conv{2*i+1}')
-        x = _Conv_BN_ReLU(x, first_block_filters*2**i, (3, 3), f'Conv{2*i+2}')
+        x = _conv_bn_relu(x, first_block_filters*2**i, (3, 3), f'Conv{2*i+1}')
+        x = _conv_bn_relu(x, first_block_filters*2**i, (3, 3), f'Conv{2*i+2}')
         down_stack.append(x)
-        x = layers.MaxPool2D(pool_size=(2, 2), strides=2, padding='valid', name=f'MaxPool{i+1}')(x)
+        x = layers.MaxPool2D(pool_size=(2, 2), strides=2,
+                             padding='valid', name=f'MaxPool{i+1}')(x)
 
-    x = _Conv_BN_ReLU(x, first_block_filters*2**unet_layers, (3, 3), f'Conv{2*unet_layers+1}')
-    x = _Conv_BN_ReLU(x, first_block_filters*2**unet_layers, (3, 3), f'Conv{2*unet_layers+2}')
+    x = _conv_bn_relu(x, first_block_filters*2**unet_layers,
+                      (3, 3), f'Conv{2*unet_layers+1}')
+    x = _conv_bn_relu(x, first_block_filters*2**unet_layers,
+                      (3, 3), f'Conv{2*unet_layers+2}')
 
     # Upsampling steps
     croppings = [12*2**i - 8 for i in range(unet_layers)]
     down_stack.reverse()
     for i in range(unet_layers):
-        x = _UpConv_BN_ReLU(x, first_block_filters*2**(unet_layers-1-i), (2, 2), f'UpConv{i+1}')
-        skip = layers.Cropping2D(cropping=croppings[i], name=f'Crop{i+1}')(down_stack[i])
+        x = _upconv_bn_relu(x, first_block_filters*2**(unet_layers-1-i),
+                            (2, 2), f'UpConv{i+1}')
+
+        skip = layers.Cropping2D(cropping=croppings[i],
+                                 name=f'Crop{i+1}')(down_stack[i])
         x = layers.Concatenate(name=f'Concate{i+1}')([skip, x])
-        x = _Conv_BN_ReLU(x, first_block_filters*2**(unet_layers-1-i), (3, 3), f'Conv{2*(i+unet_layers+1)+1}')
-        x = _Conv_BN_ReLU(x, first_block_filters*2**(unet_layers-1-i), (3, 3), f'Conv{2*(i+unet_layers+1)+2}')
+
+        x = _conv_bn_relu(x, first_block_filters*2**(unet_layers-1-i),
+                          (3, 3), f'Conv{2*(i+unet_layers+1)+1}')
+        x = _conv_bn_relu(x, first_block_filters*2**(unet_layers-1-i),
+                          (3, 3), f'Conv{2*(i+unet_layers+1)+2}')
 
 
-    x = layers.Conv2D(output_channels, (1, 1), strides=1, padding='valid', name='Conv_Final')(x)
+    x = layers.Conv2D(output_channels, (1, 1), strides=1,
+                      padding='valid', name='Conv_Final')(x)
 
     return keras.Model(inputs=inputs, outputs=x, name=model_name)
 
-def unet_model_zero_pad(output_channels: int, 
+def unet_model_zero_pad(output_channels: int,
                         unet_layers=4, model_name='UNet_Zero_Pad') -> keras.Model:
-    def _Conv_BN_ReLU(inputs: tf.Tensor, filters: int, 
-            kernel_size: Tuple[int, int], name: str) -> tf.Tensor:
-        x = layers.Conv2D(filters, kernel_size, strides=1, padding='same', name=name)(inputs)
+    """Build and return a UNet model with zero padding, same-size output"""
+    def _conv_bn_relu(inputs: tf.Tensor, filters: int,
+                      kernel_size: Tuple[int, int], name: str) -> tf.Tensor:
+        """Single conv + batchnorm + relu layer"""
+        x = layers.Conv2D(filters, kernel_size, strides=1,
+                          padding='same', name=name)(inputs)
         x = layers.BatchNormalization(name=name+'_BN')(x)
         outputs = layers.ReLU(name=name+'_relu')(x)
         return outputs
 
-    def _UpConv_BN_ReLU(inputs: tf.Tensor, filters: int, 
-            kernel_size: Tuple[int, int], name: str) -> tf.Tensor:
-        x = layers.Conv2DTranspose(filters, kernel_size, strides=2, padding='same', name=name)(inputs)
+    def _upconv_bn_relu(inputs: tf.Tensor, filters: int,
+                        kernel_size: Tuple[int, int], name: str) -> tf.Tensor:
+        """Single upconv + batchnorm + relu layer"""
+        x = layers.Conv2DTranspose(filters, kernel_size, strides=2,
+                                   padding='same', name=name)(inputs)
         x = layers.BatchNormalization(name=name+'_BN')(x)
         outputs = layers.ReLU(name=name+'_relu')(x)
         return outputs
@@ -74,28 +97,35 @@ def unet_model_zero_pad(output_channels: int,
 
     # Downsampling steps
     for i in range(unet_layers):
-        x = _Conv_BN_ReLU(x, first_block_filters*2**i, (3, 3), f'Conv{2*i+1}')
-        x = _Conv_BN_ReLU(x, first_block_filters*2**i, (3, 3), f'Conv{2*i+2}')
+        x = _conv_bn_relu(x, first_block_filters*2**i, (3, 3), f'Conv{2*i+1}')
+        x = _conv_bn_relu(x, first_block_filters*2**i, (3, 3), f'Conv{2*i+2}')
         down_stack.append(x)
-        x = layers.MaxPool2D(pool_size=(2, 2), strides=2, padding='same', name=f'MaxPool{i+1}')(x)
+        x = layers.MaxPool2D(pool_size=(2, 2), strides=2,
+                             padding='same', name=f'MaxPool{i+1}')(x)
 
-    x = _Conv_BN_ReLU(x, first_block_filters*2**unet_layers, (3, 3), f'Conv{2*unet_layers+1}')
-    x = _Conv_BN_ReLU(x, first_block_filters*2**unet_layers, (3, 3), f'Conv{2*unet_layers+2}')
+    x = _conv_bn_relu(x, first_block_filters*2**unet_layers,
+                      (3, 3), f'Conv{2*unet_layers+1}')
+    x = _conv_bn_relu(x, first_block_filters*2**unet_layers,
+                      (3, 3), f'Conv{2*unet_layers+2}')
 
     # Upsampling steps
     down_stack.reverse()
     for i in range(unet_layers):
-        x = _UpConv_BN_ReLU(x, first_block_filters*2**(unet_layers-1-i), (2, 2), f'UpConv{i+1}')
+        x = _upconv_bn_relu(x, first_block_filters*2**(unet_layers-1-i),
+                            (2, 2), f'UpConv{i+1}')
         x = layers.Concatenate(name=f'Concate{i+1}')([down_stack[i], x])
-        x = _Conv_BN_ReLU(x, first_block_filters*2**(unet_layers-1-i), (3, 3), f'Conv{2*(i+unet_layers+1)+1}')
-        x = _Conv_BN_ReLU(x, first_block_filters*2**(unet_layers-1-i), (3, 3), f'Conv{2*(i+unet_layers+1)+2}')
+        x = _conv_bn_relu(x, first_block_filters*2**(unet_layers-1-i),
+                          (3, 3), f'Conv{2*(i+unet_layers+1)+1}')
+        x = _conv_bn_relu(x, first_block_filters*2**(unet_layers-1-i),
+                          (3, 3), f'Conv{2*(i+unet_layers+1)+2}')
 
 
-    x = layers.Conv2D(output_channels, (1, 1), strides=1, padding='valid', name='Conv_Final')(x)
+    x = layers.Conv2D(output_channels, (1, 1), strides=1,
+                      padding='valid', name='Conv_Final')(x)
 
     return keras.Model(inputs=inputs, outputs=x, name=model_name)
 
 if __name__ == '__main__':
     model = unet_model_zero_pad(3)
     keras.utils.plot_model(model, 'UNet_model.png', show_shapes=True)
-
+# pylint: enable=invalid-name

@@ -177,6 +177,7 @@ def plot_to_image(figure):
 def get_cm_callback(log_dir: str, class_names: List[str]) -> callbacks.Callback:
     """Get the confusion matrix callback for plotting"""
     def log_confusion_matrix(epoch, logs):
+        """Use tf.summary.image to plot confusion matrix"""
         figure = plot_confusion_matrix(logs['cm'], class_names=class_names)
         cm_image = plot_to_image(figure)
         with cm_image_writer.as_default():
