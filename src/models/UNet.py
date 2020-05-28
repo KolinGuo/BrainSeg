@@ -3,7 +3,8 @@ from tensorflow import keras
 from tensorflow.keras import layers, optimizers, losses
 from typing import Tuple
 
-def unet_model_no_pad(output_channels: int, unet_layers=4) -> keras.Model:
+def unet_model_no_pad(output_channels: int, 
+                      unet_layers=4, model_name='UNet_No_Pad') -> keras.Model:
     def _Conv_BN_ReLU(inputs: tf.Tensor, filters: int, 
             kernel_size: Tuple[int, int], name: str) -> tf.Tensor:
         x = layers.Conv2D(filters, kernel_size, strides=1, padding='valid', name=name)(inputs)
@@ -47,9 +48,10 @@ def unet_model_no_pad(output_channels: int, unet_layers=4) -> keras.Model:
 
     x = layers.Conv2D(output_channels, (1, 1), strides=1, padding='valid', name='Conv_Final')(x)
 
-    return keras.Model(inputs=inputs, outputs=x, name='UNet_No_Pad')
+    return keras.Model(inputs=inputs, outputs=x, name=model_name)
 
-def unet_model_zero_pad(output_channels: int, unet_layers=4) -> keras.Model:
+def unet_model_zero_pad(output_channels: int, 
+                        unet_layers=4, model_name='UNet_Zero_Pad') -> keras.Model:
     def _Conv_BN_ReLU(inputs: tf.Tensor, filters: int, 
             kernel_size: Tuple[int, int], name: str) -> tf.Tensor:
         x = layers.Conv2D(filters, kernel_size, strides=1, padding='same', name=name)(inputs)
@@ -91,7 +93,7 @@ def unet_model_zero_pad(output_channels: int, unet_layers=4) -> keras.Model:
 
     x = layers.Conv2D(output_channels, (1, 1), strides=1, padding='valid', name='Conv_Final')(x)
 
-    return keras.Model(inputs=inputs, outputs=x, name='UNet_Zero_Pad')
+    return keras.Model(inputs=inputs, outputs=x, name=model_name)
 
 if __name__ == '__main__':
     model = unet_model_zero_pad(3)
