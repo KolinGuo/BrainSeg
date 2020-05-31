@@ -1,9 +1,13 @@
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import metrics
+"""Custom metrics based on tf.keras.metrics"""
+# pylint: disable=too-many-ancestors
+
 from typing import List
 
+import tensorflow as tf
+from tensorflow.keras import metrics
+
 class SparseMeanIoU(metrics.MeanIoU):
+    """Calculate Mean IoU"""
     def update_state(self, y_true, y_pred, sample_weight=None):
         y_pred = tf.argmax(y_pred, axis=-1)
         return super().update_state(y_true, y_pred, sample_weight)
@@ -18,9 +22,10 @@ class SparseConfusionMatrix(metrics.MeanIoU):
         return self.total_cm
 
 class SparseIoU(metrics.MeanIoU):
+    """Calculate per-class IoU"""
     def __init__(self, class_idx, num_classes, name=None, dtype=None):
-        super(SparseIoU, self).__init__(num_classes=num_classes, 
-                name=name, dtype=dtype)
+        super(SparseIoU, self).__init__(num_classes=num_classes,
+                                        name=name, dtype=dtype)
 
         self.class_idx = class_idx    # Computes this IoU only
         assert self.class_idx >= 0 and self.class_idx < num_classes, \
@@ -29,21 +34,24 @@ class SparseIoU(metrics.MeanIoU):
 
     @staticmethod
     def get_iou_metrics(num_classes, class_names) -> List["SparseIoU"]:
-        return [SparseIoU(class_idx=i, num_classes=num_classes, 
-            name=f'IoU/Class{i}_{class_names[i]}') for i in range(num_classes)]
+        """Static method for getting all per-class IoUs"""
+        return [SparseIoU(class_idx=i, num_classes=num_classes,
+                          name=f'IoU/Class{i}_{class_names[i]}')
+                for i in range(num_classes)]
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         y_pred = tf.argmax(y_pred, axis=-1)
         return super().update_state(y_true, y_pred, sample_weight)
 
+    # pylint: disable=unexpected-keyword-arg, no-value-for-parameter
     def result(self):
         sum_over_row = tf.cast(
-                tf.math.reduce_sum(self.total_cm, axis=0), dtype=self._dtype)
+            tf.math.reduce_sum(self.total_cm, axis=0), dtype=self._dtype)
         sum_over_col = tf.cast(
-                tf.math.reduce_sum(self.total_cm, axis=1), dtype=self._dtype)
+            tf.math.reduce_sum(self.total_cm, axis=1), dtype=self._dtype)
         true_positives = tf.cast(
-                tf.linalg.diag_part(self.total_cm), dtype=self._dtype)
-                                        
+            tf.linalg.diag_part(self.total_cm), dtype=self._dtype)
+
         # sum_over_row + sum_over_col =
         #     2 * true_positives + false_positives + false_negatives.
         denominator = sum_over_row + sum_over_col - true_positives
@@ -51,3 +59,5 @@ class SparseIoU(metrics.MeanIoU):
         iou = tf.math.divide_no_nan(true_positives, denominator)
 
         return iou[self.class_idx]
+    # pylint: enable=unexpected-keyword-arg, no-value-for-parameter
+# pylint: enable=too-many-ancestors
