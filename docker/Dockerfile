@@ -144,3 +144,11 @@ RUN cat /tmp/bashrc > /etc/bash.bashrc
 
 # For Tensorboard profiler
 ENV LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
+
+# Setup locale language config
+RUN apt-get update && apt-get -y install locales && \
+    locale-gen "en_US.UTF-8" && \
+    update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
