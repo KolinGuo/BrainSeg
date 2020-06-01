@@ -27,8 +27,7 @@ def get_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description='Training\n\t')
 
-    model_parser = main_parser.add_argument_group(
-        'Model configurations')
+    model_parser = main_parser.add_argument_group('Model configurations')
     model_parser.add_argument(
         'model',
         choices=['UNet_No_Pad', 'UNet_No_Pad_3Layer',
@@ -36,8 +35,7 @@ def get_parser() -> argparse.ArgumentParser:
                  'FCN'],
         help="Network model used for training")
 
-    dataset_parser = main_parser.add_argument_group(
-        'Dataset configurations')
+    dataset_parser = main_parser.add_argument_group('Dataset configurations')
     dataset_parser.add_argument(
         "--data-dir-AD", type=str, default='/BrainSeg/data/box_Ab',
         help="Directory of AD svs files (Default: data/box_Ab)")
@@ -51,8 +49,7 @@ def get_parser() -> argparse.ArgumentParser:
         "--val-subsplits", type=int, default=1,
         help="Number to divide total number of val data for each epoch")
 
-    train_parser = main_parser.add_argument_group(
-        'Training configurations')
+    train_parser = main_parser.add_argument_group('Training configurations')
     train_parser.add_argument(
         '--loss-func',
         choices=['SCCE', 'BSCCE', 'Sparse_Focal', 'Balanced_Sparse_Focal'],

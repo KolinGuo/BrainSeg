@@ -1,4 +1,7 @@
-import os, glob, sys
+import os
+import glob
+import sys
+import re
 import numpy as np
 from tqdm import tqdm
 from PIL import Image
@@ -191,6 +194,28 @@ def generate_predict_dataset(data_dirs: List[str], patch_size: int) \
                     svs_name+f'_({start_r},{start_c},{end_r},{end_c}).png'))
         del svs_img_arr
     return svs_paths, save_dir
+
+def get_patch_paths_and_coords(patch_dir: str, svs_name: str) \
+        -> Tuple[List[str], "NDArray[int]"]:
+    """
+    Returns the patch_paths and patch_coords for this svs
+
+    Inputs:
+        patch_dir : patch directory path
+        svs_name  : svs_name to look for
+    Outputs:
+        patch_paths  : list of patch file paths
+        patch_coords : ndarray of patch coordinates
+    """
+    svs_patch_dir = os.path.join(patch_dir, 'images', svs_name)
+    patch_paths = sorted(glob.glob(os.path.join(svs_patch_dir, "*.png")),
+                         key=lambda p: \
+            [int(s) for s in re.split(r'\(|,|\)', p.split('/')[-1])[1:-1]])
+
+    patch_coords = np.array([[int(s)
+                              for s in re.split(r'\(|,|\)', p.split('/')[-1])[1:-1]]
+                             for p in patch_paths], dtype=int)
+    return patch_paths, patch_coords
 
 def compute_class_weight(save_svs_file: str, class_freq_dataset='train') \
         -> "NDArray[np.float]":
