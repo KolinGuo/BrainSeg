@@ -123,7 +123,10 @@ def predict(args):
     else:
         model = keras.models.load_model(
             args.ckpt_filepath,
-            custom_objects={'SparseMeanIoU': SparseMeanIoU})
+            custom_objects={
+                'SparseMeanIoU': SparseMeanIoU,
+                'SparseConfusionMatrix': SparseConfusionMatrix,
+                'SparseIoU': SparseIoU})
         print('Full model (weights + optimizer state) loaded')
 
     # Create output directory
