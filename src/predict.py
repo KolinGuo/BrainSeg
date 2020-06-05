@@ -14,9 +14,9 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.mixed_precision import experimental as mixed_precision
 
-from train import SparseMeanIoU
 from models.FCN import fcn_model
 from models.UNet import unet_model_zero_pad
+from models.metrics import SparseIoU, SparseMeanIoU, SparseConfusionMatrix
 from utils.dataset import generate_predict_dataset, get_patch_paths_and_coords, \
         reconstruct_predicted_masks, save_predicted_masks, \
         BrainSegPredictSequence
