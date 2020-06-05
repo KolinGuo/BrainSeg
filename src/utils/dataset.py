@@ -5,7 +5,7 @@ import os
 import glob
 import sys
 import re
-from typing import Tuple, List
+from typing import Tuple, List, Dict
 
 from PIL import Image
 import numpy as np
@@ -88,6 +88,7 @@ def generate_norm_patches(svs_path: str, patch_size: int) \
         patches      : normalized patches, (num_patches, patch_size, patch_size, 3)
         patch_coords : patch coordinate in original WSI
     """
+    # pylint: disable=too-many-locals
     svs_img_arr = svs_to_numpy(svs_path)
     height, width, _ = svs_img_arr.shape
 
@@ -118,6 +119,7 @@ def generate_norm_patches(svs_path: str, patch_size: int) \
             patch_coords[idx, ...] = [start_r, start_c, end_r, end_c]
             idx += 1
     del svs_img_arr
+    # pylint: enable=too-many-locals
     return patches/255.0, patch_coords
 
 def extract_patches(img_arr, patch_size, keep_as_view=True):
@@ -143,6 +145,7 @@ def generate_predict_dataset(data_dirs: List[str], patch_size: int) \
         svs_paths : list of .svs file paths
         save_dir  : patch saving directory path
     """
+    # pylint: disable=too-many-locals
     print('Generating predict dataset')
 
     ##### Get WSI paths #####
@@ -197,6 +200,7 @@ def generate_predict_dataset(data_dirs: List[str], patch_size: int) \
                 svs_patch.save(os.path.join(save_img_dir, svs_name \
                         + f'_({start_r},{start_c},{end_r},{end_c}).png'))
         del svs_img_arr
+    # pylint: enable=too-many-locals
     return svs_paths, save_dir
 
 def get_patch_paths_and_coords(patch_dir: str, svs_name: str) \
@@ -259,226 +263,9 @@ def compute_class_weight(save_svs_file: str, class_freq_dataset='train') \
     #class_weights = {k:v for k, v in enumerate(class_weights)}
     return class_weights
 
-def generate_dataset(data_dir_AD: str, data_dir_control: str,
-                     patch_size: int, force_regenerate=False) \
-        -> Tuple[str, str, str]:
-    """
-    Generate a dataset
-
-    Inputs:
-        data_dir_AD      : AD .svs directory path
-        data_dir_control : control .svs directory path
-        patch_size       : patch size
-        force_regenerate : whether to force regenerate dataset or not
-    Outputs:
-        save_svs_file   : .txt file path of dataset descriptions
-        save_train_file : .npy file path of training data
-        save_val_file   : .npy file path of validation data
-    """
-    def _get_groundtruth_paths(svs_AD_paths: List[str], svs_control_paths: List[str]) \
-            -> Tuple[List[str], List[str], List[str], List[str]]:
-        # Glob strings for mask .png files
-        glob_strs = {
-            'gray'   : "*-Gray.png",
-            'white'  : "*-White.png",
-            'back'   : "*-Background.png"
-            }
-
-        # Check if groundtruth is available
-        truth_AD_paths, truth_control_paths = [], []
-        data_AD_no_truth, data_control_no_truth = [], []
-        for i, svs_path in enumerate(svs_AD_paths):
-            svs_name = svs_path.split('/')[-1].replace('.svs', '')
-            glob_masks = {k: glob.glob(
-                os.path.join(data_dir_AD, 'groundtruth', svs_name+v))
-                          for k, v in glob_strs.items()}
-            if all(glob_masks.values()):
-                truth_AD_paths.append(glob_masks)
-            else:
-                data_AD_no_truth.append(i)
-
-        for i, svs_path in enumerate(svs_control_paths):
-            svs_name = svs_path.split('/')[-1].replace('.svs', '')
-            glob_masks = {k: glob.glob(
-                os.path.join(data_dir_control, 'groundtruth', svs_name+v))
-                          for k, v in glob_strs.items()}
-            if all(glob_masks.values()):
-                truth_control_paths.append(glob_masks)
-            else:
-                data_control_no_truth.append(i)
-
-        # Remove svs without groundtruths
-        svs_AD_removed = [p for i, p in enumerate(svs_AD_paths)
-                          if i in data_AD_no_truth]
-        svs_control_removed = [p for i, p in enumerate(svs_control_paths)
-                               if i in data_control_no_truth]
-
-        svs_AD_paths = [p for i, p in enumerate(svs_AD_paths)
-                        if i not in data_AD_no_truth]
-        svs_control_paths = [p for i, p in enumerate(svs_control_paths)
-                             if i not in data_control_no_truth]
-
-        if svs_AD_removed:
-            print(f"\t{len(svs_AD_removed)} AD WSIs don't have groundtruths\n"
-                  f"\t{[p.split('/')[-1] for p in svs_AD_removed]}\n"
-                  "\tWon't include them in dataset")
-        if svs_control_removed:
-            print(f"\t{len(svs_control_removed)} control WSIs don't have groundtruths\n"
-                  f"\t{[p.split('/')[-1] for p in svs_control_removed]}\n"
-                  "\tWon't include them in dataset")
-
-        return svs_AD_paths, svs_control_paths, truth_AD_paths, truth_control_paths
-
-    def _generate_patches(save_dir: str, svs_paths: List[str], truth_paths: List[str]) \
-            -> Tuple[bool, "NDArray[int]"]:
-        found_new_svs = False
-        total_class_freq = []
-        for i, svs_path in enumerate(tqdm(svs_paths)):
-            # Get corresponding groundtruth path
-            truth_path = truth_paths[i]
-            truth_back_path = truth_path['back'][0]  # Label 0
-            truth_gray_path = truth_path['gray'][0]  # Label 1
-            truth_white_path = truth_path['white'][0] # Label 2
-
-            svs_name = svs_path.split('/')[-1].replace('.svs', '')
-
-            save_img_dir = os.path.join(save_dir, 'images', svs_name)
-            save_mask_dir = os.path.join(save_dir, 'masks', svs_name)
-            save_class_freq_file = os.path.join(save_mask_dir, 'class_freq.npy')
-            if not os.path.exists(save_img_dir):
-                os.makedirs(save_img_dir)
-            if not os.path.exists(save_mask_dir):
-                os.makedirs(save_mask_dir)
-            else:   # Skip if already generated for this WSI
-                class_freq = np.load(save_class_freq_file)
-                total_class_freq += [list(class_freq)]
-                continue
-
-            found_new_svs = True
-
-            # Convert svs to numpy array
-            svs_img_arr = svs_to_numpy(svs_path)
-            truth_back_arr = np.array(Image.open(truth_back_path))
-            truth_gray_arr = np.array(Image.open(truth_gray_path))
-            truth_white_arr = np.array(Image.open(truth_white_path))
-            height, width = truth_back_arr.shape
-            assert svs_img_arr.shape[0:-1] == truth_back_arr.shape
-            assert svs_img_arr.shape[0:-1] == truth_gray_arr.shape
-            assert svs_img_arr.shape[0:-1] == truth_white_arr.shape
-
-            mask_arr = np.zeros_like(truth_back_arr, dtype='uint8')
-            mask_arr[truth_gray_arr] = 1
-            mask_arr[truth_white_arr] = 2
-            class_freq = \
-                [truth_back_arr.sum(), truth_gray_arr.sum(), truth_white_arr.sum()]
-            class_freq = np.array(class_freq, dtype='int')
-            del truth_back_arr, truth_gray_arr, truth_white_arr
-
-            iters = np.ceil([height / patch_size, width / patch_size]).astype('int')
-            for row in range(iters[0]):
-                for col in range(iters[1]):
-                    # Get start and end pixel location
-                    if row != iters[0] - 1:
-                        start_r = row * patch_size
-                        end_r = start_r + patch_size
-                    else:
-                        start_r = height - patch_size
-                        end_r = height
-                    if col != iters[1] - 1:
-                        start_c = col * patch_size
-                        end_c = start_c + patch_size
-                    else:
-                        start_c = width - patch_size
-                        end_c = width
-
-                    # Cut patches
-                    svs_patch = Image.fromarray(
-                        svs_img_arr[start_r:end_r, start_c:end_c], 'RGB')
-                    # Save mask_patch using P (palette) mode to save space
-                    mask_patch = Image.fromarray(
-                        mask_arr[start_r:end_r, start_c:end_c], 'P')
-                    mask_patch.putpalette([0, 0, 0, 135, 98, 122, 106, 99, 251])
-
-                    # Save patches
-                    svs_patch.save(os.path.join(save_img_dir, svs_name \
-                            + f'_({start_r},{start_c},{end_r},{end_c}).png'))
-                    mask_patch.save(os.path.join(save_mask_dir, svs_name \
-                            + f'_({start_r},{start_c},{end_r},{end_c}).png'),
-                                    transparency=0)
-            del svs_img_arr, mask_arr
-            # Save class_freq
-            np.save(save_class_freq_file, class_freq)
-            total_class_freq += [list(class_freq)]
-
-        # Convert to numpy array
-        total_class_freq = np.array(total_class_freq, dtype='int')
-
-        return found_new_svs, total_class_freq
-
-    def _split_save_trainval_dataset(svs_AD_paths: List[str], svs_control_paths: List[str]) \
-            -> Tuple[List[str], List[str], List[str], List[str]]:
-        # Divide into train/val sets
-        val_AD_count = int(np.ceil(len(svs_AD_paths) * VAL_PROP))
-        train_AD_count = len(svs_AD_paths) - val_AD_count
-        val_control_count = int(np.ceil(len(svs_control_paths) * VAL_PROP))
-        train_control_count = len(svs_control_paths) - val_control_count
-
-        # Randomly select svs into train/val sets
-        AD_idx = np.random.permutation(len(svs_AD_paths))
-        control_idx = np.random.permutation(len(svs_control_paths))
-        train_AD_idx = AD_idx[0:train_AD_count]
-        val_AD_idx = AD_idx[train_AD_count:]
-        train_control_idx = control_idx[0:train_control_count]
-        val_control_idx = control_idx[train_control_count:]
-
-        train_AD_paths = [p for i, p in enumerate(svs_AD_paths)
-                          if i in train_AD_idx]
-        val_AD_paths = [p for i, p in enumerate(svs_AD_paths)
-                        if i in val_AD_idx]
-        train_control_paths = [p for i, p in enumerate(svs_control_paths)
-                               if i in train_control_idx]
-        val_control_paths = [p for i, p in enumerate(svs_control_paths)
-                             if i in val_control_idx]
-
-        # For indexing total_class_freq
-        train_idx = np.append(train_AD_idx, (train_control_idx + len(svs_AD_paths)))
-        val_idx = np.append(val_AD_idx, (val_control_idx + len(svs_AD_paths)))
-        with open(save_svs_file, 'w') as f:
-            # Write dataset split
-            f.write(f'AD WSI: Train = {train_AD_count}, '
-                    f'Validation = {val_AD_count}\n')
-            f.write('\tTrain: \n\t\t{}\n\tVal: \n\t\t{}\n'\
-                    .format('\n\t\t'.join(train_AD_paths),
-                            '\n\t\t'.join(val_AD_paths)))
-            f.write(f'Control WSI: Train = {train_control_count}, '
-                    f'Validation = {val_control_count}\n')
-            f.write('\tTrain: \n\t\t{}\n\tVal: \n\t\t{}\n'\
-                    .format('\n\t\t'.join(train_control_paths),
-                            '\n\t\t'.join(val_control_paths)))
-            # Write class frequency
-            f.write('Class Frequency: [back, gray, white]\n')
-            for i, svs_path in enumerate(svs_AD_paths + svs_control_paths):
-                svs_name = svs_path.split('/')[-1].replace('.svs', '')
-                f.write(f'\t{svs_name}: {total_class_freq[i]}\n')
-            f.write('Train Class Frequency: {}\n'\
-                    .format(np.sum(total_class_freq[train_idx], axis=0)))
-            f.write('Val Class Frequency: {}\n'\
-                    .format(np.sum(total_class_freq[val_idx], axis=0)))
-            f.write('Total Class Frequency: {}\n'\
-                    .format(np.sum(total_class_freq, axis=0)))
-
-        print(f'WSI AD: train = {train_AD_count}, val = {val_AD_count}')
-        print(f'WSI Control: train = {train_control_count}, val = {val_control_count}')
-
-        return train_AD_paths, val_AD_paths, train_control_paths, val_control_paths
-
-
-    print('Generating train/eval dataset')
-
-    # Convert to abspath
-    data_dir_AD = os.path.abspath(data_dir_AD)
-    data_dir_control = os.path.abspath(data_dir_control)
-
+def _get_svs_and_truth_paths(data_dir_AD: str, data_dir_control: str) \
+        -> Tuple[List[str], List[str], List[str], List[str]]:
+    """Get svs and groundtruth paths, remove those svs without groundtruths"""
     ##### Get WSI paths #####
     # Glob data .svs filepaths
     svs_AD_paths = sorted(glob.glob(os.path.join(data_dir_AD, "*AB*.svs")))
@@ -488,42 +275,226 @@ def generate_dataset(data_dir_AD: str, data_dir_control: str,
           f'and {len(svs_control_paths)} control WSIs')
 
     ##### Get groundtruth paths #####
-    svs_AD_paths, svs_control_paths, truth_AD_paths, truth_control_paths \
-            = _get_groundtruth_paths(svs_AD_paths, svs_control_paths)
+    # Glob strings for mask .png files
+    glob_strs = {
+        'gray'   : "*-Gray.png",
+        'white'  : "*-White.png",
+        'back'   : "*-Background.png"
+        }
 
-    ##### Generate Patches #####
-    save_dir = os.path.join(os.path.dirname(data_dir_AD), f'patches_{patch_size}')
-    print(f'Generating patches of size {patch_size}x{patch_size} \n\t'
-          f'for {len(svs_AD_paths)} AD WSIs '
-          f'and {len(svs_control_paths)} control WSIs\n\t'
-          f'saving at "{save_dir}"')
+    # Check if groundtruth is available
+    truth_AD_paths, truth_control_paths = [], []
+    data_AD_no_truth, data_control_no_truth = [], []
+    for i, svs_path in enumerate(svs_AD_paths):
+        svs_name = svs_path.split('/')[-1].replace('.svs', '')
+        glob_masks = {k: glob.glob(
+            os.path.join(data_dir_AD, 'groundtruth', svs_name+v))
+                      for k, v in glob_strs.items()}
+        if all(glob_masks.values()):
+            truth_AD_paths.append(glob_masks)
+        else:
+            data_AD_no_truth.append(i)
 
-    found_new_svs, total_class_freq \
-            = _generate_patches(save_dir, svs_AD_paths + svs_control_paths,
-                                truth_AD_paths + truth_control_paths)
+    for i, svs_path in enumerate(svs_control_paths):
+        svs_name = svs_path.split('/')[-1].replace('.svs', '')
+        glob_masks = {k: glob.glob(
+            os.path.join(data_dir_control, 'groundtruth', svs_name+v))
+                      for k, v in glob_strs.items()}
+        if all(glob_masks.values()):
+            truth_control_paths.append(glob_masks)
+        else:
+            data_control_no_truth.append(i)
 
-    ##### Split into train and validation dataset #####
-    save_svs_file = os.path.join(save_dir, 'dataset.txt')
-    save_train_file = os.path.join(save_dir, 'train.npy')
-    save_val_file = os.path.join(save_dir, 'val.npy')
+    # Remove svs without groundtruths
+    svs_AD_removed = [p for i, p in enumerate(svs_AD_paths)
+                      if i in data_AD_no_truth]
+    svs_control_removed = [p for i, p in enumerate(svs_control_paths)
+                           if i in data_control_no_truth]
 
-    # Return if no need for regenerate dataset
-    if not force_regenerate and not found_new_svs \
-            and os.path.exists(save_svs_file) \
-            and os.path.exists(save_train_file) \
-            and os.path.exists(save_val_file):
-        print("Found existing dataset, won't regenerate it")
-        return save_svs_file, save_train_file, save_val_file
+    svs_AD_paths = [p for i, p in enumerate(svs_AD_paths)
+                    if i not in data_AD_no_truth]
+    svs_control_paths = [p for i, p in enumerate(svs_control_paths)
+                         if i not in data_control_no_truth]
 
-    train_AD_paths, val_AD_paths, train_control_paths, val_control_paths \
-            = _split_save_trainval_dataset(svs_AD_paths, svs_control_paths)
+    if svs_AD_removed:
+        print(f"\t{len(svs_AD_removed)} AD WSIs don't have groundtruths\n"
+              f"\t{[p.split('/')[-1] for p in svs_AD_removed]}\n"
+              "\tWon't include them in dataset")
+    if svs_control_removed:
+        print(f"\t{len(svs_control_removed)} control WSIs don't have groundtruths\n"
+              f"\t{[p.split('/')[-1] for p in svs_control_removed]}\n"
+              "\tWon't include them in dataset")
 
+    return svs_AD_paths, svs_control_paths, truth_AD_paths, truth_control_paths
+
+def _generate_patches(save_dir: str, patch_size: int,
+                      svs_paths: List[str], truth_paths: List[str]) \
+        -> Tuple[bool, "NDArray[int]"]:
+    """Generate patches for svs and groundtruth"""
+    # pylint: disable=too-many-locals
+    # pylint: disable=too-many-statements
+    found_new_svs = False
+    total_class_freq = []
+    for i, svs_path in enumerate(tqdm(svs_paths)):
+        # Get corresponding groundtruth path
+        truth_path = truth_paths[i]
+        truth_back_path = truth_path['back'][0]  # Label 0
+        truth_gray_path = truth_path['gray'][0]  # Label 1
+        truth_white_path = truth_path['white'][0] # Label 2
+
+        svs_name = svs_path.split('/')[-1].replace('.svs', '')
+
+        save_img_dir = os.path.join(save_dir, 'images', svs_name)
+        save_mask_dir = os.path.join(save_dir, 'masks', svs_name)
+        save_class_freq_file = os.path.join(save_mask_dir, 'class_freq.npy')
+        if not os.path.exists(save_img_dir):
+            os.makedirs(save_img_dir)
+        if not os.path.exists(save_mask_dir):
+            os.makedirs(save_mask_dir)
+        else:   # Skip if already generated for this WSI
+            class_freq = np.load(save_class_freq_file)
+            total_class_freq += [list(class_freq)]
+            continue
+
+        found_new_svs = True
+
+        # Convert svs to numpy array
+        svs_img_arr = svs_to_numpy(svs_path)
+        truth_back_arr = np.array(Image.open(truth_back_path))
+        truth_gray_arr = np.array(Image.open(truth_gray_path))
+        truth_white_arr = np.array(Image.open(truth_white_path))
+        height, width = truth_back_arr.shape
+        assert svs_img_arr.shape[0:-1] == truth_back_arr.shape
+        assert svs_img_arr.shape[0:-1] == truth_gray_arr.shape
+        assert svs_img_arr.shape[0:-1] == truth_white_arr.shape
+
+        mask_arr = np.zeros_like(truth_back_arr, dtype='uint8')
+        mask_arr[truth_gray_arr] = 1
+        mask_arr[truth_white_arr] = 2
+        class_freq = \
+            [truth_back_arr.sum(), truth_gray_arr.sum(), truth_white_arr.sum()]
+        class_freq = np.array(class_freq, dtype='int')
+        del truth_back_arr, truth_gray_arr, truth_white_arr
+
+        iters = np.ceil([height / patch_size, width / patch_size]).astype('int')
+        for row in range(iters[0]):
+            for col in range(iters[1]):
+                # Get start and end pixel location
+                if row != iters[0] - 1:
+                    start_r = row * patch_size
+                    end_r = start_r + patch_size
+                else:
+                    start_r = height - patch_size
+                    end_r = height
+                if col != iters[1] - 1:
+                    start_c = col * patch_size
+                    end_c = start_c + patch_size
+                else:
+                    start_c = width - patch_size
+                    end_c = width
+
+                # Cut patches
+                svs_patch = Image.fromarray(
+                    svs_img_arr[start_r:end_r, start_c:end_c], 'RGB')
+                # Save mask_patch using P (palette) mode to save space
+                mask_patch = Image.fromarray(
+                    mask_arr[start_r:end_r, start_c:end_c], 'P')
+                mask_patch.putpalette([0, 0, 0, 135, 98, 122, 106, 99, 251])
+
+                # Save patches
+                svs_patch.save(os.path.join(save_img_dir, svs_name \
+                        + f'_({start_r},{start_c},{end_r},{end_c}).png'))
+                mask_patch.save(os.path.join(save_mask_dir, svs_name \
+                        + f'_({start_r},{start_c},{end_r},{end_c}).png'),
+                                transparency=0)
+        del svs_img_arr, mask_arr
+        # Save class_freq
+        np.save(save_class_freq_file, class_freq)
+        total_class_freq += [list(class_freq)]
+
+    # Convert to numpy array
+    total_class_freq = np.array(total_class_freq, dtype='int')
+
+    # pylint: enable=too-many-locals
+    # pylint: enable=too-many-statements
+    return found_new_svs, total_class_freq
+
+def _split_trainval_dataset(svs_AD_paths: List[str], svs_control_paths: List[str]) \
+        -> Dict[int, "NDArray[int]"]:
+    """Split and save data into train/val dataset"""
+    # Divide into train/val sets
+    val_AD_count = int(np.ceil(len(svs_AD_paths) * VAL_PROP))
+    train_AD_count = len(svs_AD_paths) - val_AD_count
+    val_control_count = int(np.ceil(len(svs_control_paths) * VAL_PROP))
+    train_control_count = len(svs_control_paths) - val_control_count
+
+    # Randomly select svs into train/val sets
+    AD_idx = np.random.permutation(len(svs_AD_paths))
+    control_idx = np.random.permutation(len(svs_control_paths))
+    train_AD_idx = AD_idx[0:train_AD_count]
+    val_AD_idx = AD_idx[train_AD_count:]
+    train_control_idx = control_idx[0:train_control_count]
+    val_control_idx = control_idx[train_control_count:]
+
+    print(f'WSI AD: train = {train_AD_count}, val = {val_AD_count}')
+    print(f'WSI Control: train = {train_control_count}, val = {val_control_count}')
+
+    return {0: train_AD_idx, 1: val_AD_idx, 2: train_control_idx, 3: val_control_idx}
+
+def _save_trainval_dataset(save_svs_file: str,
+                           svs_AD_paths: List[str],
+                           svs_control_paths: List[str],
+                           train_val_idx: Dict[int, "NDArray[int]"],
+                           total_class_freq: "NDArray[int]") \
+        -> Tuple[List[str], List[str]]:
+    """Save train/val dataset"""
+    train_AD_paths = [p for i, p in enumerate(svs_AD_paths)
+                      if i in train_val_idx[0]]
+    val_AD_paths = [p for i, p in enumerate(svs_AD_paths)
+                    if i in train_val_idx[1]]
+    train_control_paths = [p for i, p in enumerate(svs_control_paths)
+                           if i in train_val_idx[2]]
+    val_control_paths = [p for i, p in enumerate(svs_control_paths)
+                         if i in train_val_idx[3]]
+    # For indexing total_class_freq
+    train_idx = np.append(train_val_idx[0], (train_val_idx[2]+ len(svs_AD_paths)))
+    val_idx = np.append(train_val_idx[1], (train_val_idx[3]+ len(svs_AD_paths)))
+    with open(save_svs_file, 'w') as f:
+        # Write dataset split
+        f.write(f'AD WSI: Train = {len(train_AD_paths)}, '
+                f'Validation = {len(val_AD_paths)}\n')
+        f.write('\tTrain: \n\t\t{}\n\tVal: \n\t\t{}\n'\
+                .format('\n\t\t'.join(train_AD_paths),
+                        '\n\t\t'.join(val_AD_paths)))
+        f.write(f'Control WSI: Train = {len(train_control_paths)}, '
+                f'Validation = {len(val_control_paths)}\n')
+        f.write('\tTrain: \n\t\t{}\n\tVal: \n\t\t{}\n'\
+                .format('\n\t\t'.join(train_control_paths),
+                        '\n\t\t'.join(val_control_paths)))
+        # Write class frequency
+        f.write('Class Frequency: [back, gray, white]\n')
+        for i, svs_path in enumerate(svs_AD_paths + svs_control_paths):
+            svs_name = svs_path.split('/')[-1].replace('.svs', '')
+            f.write(f'\t{svs_name}: {total_class_freq[i]}\n')
+        f.write('Train Class Frequency: {}\n'\
+                .format(np.sum(total_class_freq[train_idx], axis=0)))
+        f.write('Val Class Frequency: {}\n'\
+                .format(np.sum(total_class_freq[val_idx], axis=0)))
+        f.write('Total Class Frequency: {}\n'\
+                .format(np.sum(total_class_freq, axis=0)))
     print(f'Train/Val svs files see "{save_svs_file}"\n')
 
-    ##### Save paths to patches as .npy #####
+    return train_AD_paths + train_control_paths, val_AD_paths + val_control_paths
+
+def _save_patches_paths(save_dir: str,
+                        save_train_file: str,
+                        save_val_file: str,
+                        train_paths: List[str],
+                        val_paths: List[str]) -> None:
+    """Save paths to patches as .npy"""
     # Get list of tuple of patches, list(image_path, mask_path)
     train_patches, val_patches = [], []     # type: ignore
-    for svs_path in train_AD_paths + train_control_paths:
+    for svs_path in train_paths:
         svs_name = svs_path.split('/')[-1].replace('.svs', '')
         save_img_dir = os.path.join(save_dir, 'images', svs_name, "*.png")
         save_mask_dir = os.path.join(save_dir, 'masks', svs_name, "*.png")
@@ -531,7 +502,7 @@ def generate_dataset(data_dir_AD: str, data_dir_control: str,
         train_patches += zip(sorted(glob.glob(save_img_dir)),
                              sorted(glob.glob(save_mask_dir)))
 
-    for svs_path in val_AD_paths + val_control_paths:
+    for svs_path in val_paths:
         svs_name = svs_path.split('/')[-1].replace('.svs', '')
         save_img_dir = os.path.join(save_dir, 'images', svs_name, "*.png")
         save_mask_dir = os.path.join(save_dir, 'masks', svs_name, "*.png")
@@ -550,6 +521,75 @@ def generate_dataset(data_dir_AD: str, data_dir_control: str,
     print(f'Patch Dataset: train = {train_patch_paths.shape}, val = {val_patch_paths.shape}')
     print(f'Dataset saved as "{save_train_file}" and "{save_val_file}"')
 
+def generate_dataset(data_dir_AD: str, data_dir_control: str,
+                     patch_size: int, force_regenerate=False) \
+        -> Tuple[str, str, str]:
+    """
+    Generate a dataset
+
+    Inputs:
+        data_dir_AD      : AD .svs directory path
+        data_dir_control : control .svs directory path
+        patch_size       : patch size
+        force_regenerate : whether to force regenerate dataset or not
+    Outputs:
+        save_svs_file   : .txt file path of dataset descriptions
+        save_train_file : .npy file path of training data
+        save_val_file   : .npy file path of validation data
+    """
+    # pylint: disable=too-many-locals
+    print('Generating train/eval dataset')
+
+    # Convert to abspath
+    data_dir_AD = os.path.abspath(data_dir_AD)
+    data_dir_control = os.path.abspath(data_dir_control)
+
+    ##### Get svs and groundtruth paths #####
+    svs_AD_paths, svs_control_paths, truth_AD_paths, truth_control_paths \
+            = _get_svs_and_truth_paths(data_dir_AD, data_dir_control)
+
+    ##### Generate Patches #####
+    save_dir = os.path.join(os.path.dirname(data_dir_AD), f'patches_{patch_size}')
+    print(f'Generating patches of size {patch_size}x{patch_size} \n\t'
+          f'for {len(svs_AD_paths)} AD WSIs '
+          f'and {len(svs_control_paths)} control WSIs\n\t'
+          f'saving at "{save_dir}"')
+
+    found_new_svs, total_class_freq \
+            = _generate_patches(save_dir, patch_size,
+                                svs_AD_paths + svs_control_paths,
+                                truth_AD_paths + truth_control_paths)
+
+    ##### Split into train and validation dataset #####
+    save_svs_file = os.path.join(save_dir, 'dataset.txt')
+    save_train_file = os.path.join(save_dir, 'train.npy')
+    save_val_file = os.path.join(save_dir, 'val.npy')
+
+    # Return if no need for regenerate dataset
+    if not force_regenerate and not found_new_svs \
+            and os.path.exists(save_svs_file) \
+            and os.path.exists(save_train_file) \
+            and os.path.exists(save_val_file):
+        print("Found existing dataset, won't regenerate it")
+        return save_svs_file, save_train_file, save_val_file
+
+    train_val_idx = _split_trainval_dataset(svs_AD_paths, svs_control_paths)
+
+    ##### Save train and validation dataset #####
+    train_paths, val_paths \
+            = _save_trainval_dataset(save_svs_file,
+                                     svs_AD_paths,
+                                     svs_control_paths,
+                                     train_val_idx,
+                                     total_class_freq)
+
+    _save_patches_paths(save_dir,
+                        save_train_file,
+                        save_val_file,
+                        train_paths,
+                        val_paths)
+
+    # pylint: enable=too-many-locals
     return save_svs_file, save_train_file, save_val_file
 
 class BrainSegPredictSequence(Sequence):
