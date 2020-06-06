@@ -18,6 +18,7 @@ from networks.dataset import generate_predict_dataset, get_patch_paths_and_coord
         BrainSegPredictSequence
 from networks.models.models import get_model
 from networks.metrics import SparseIoU, SparseMeanIoU, SparseConfusionMatrix
+from utils.compute_mask_accuracy import ComputeMaskAccuracy
 
 def get_parser() -> argparse.ArgumentParser:
     """Get the argparse parser for this script"""
@@ -55,6 +56,9 @@ def get_parser() -> argparse.ArgumentParser:
     predict_parser.add_argument(
         "--save-dir", type=str, default="/BrainSeg/data/outputs",
         help="Output directory (Default: /BrainSeg/data/outputs/model_name)")
+    predict_parser.add_argument(
+        "--compute-accuracy", action='store_true',
+        help="Checkpoints will only save the model weights (Default: False)")
 
     return main_parser
 
@@ -155,7 +159,15 @@ def predict(args):
     # Prompt for compute_mask_accuracy
     print('\nOut of %d WSIs, \n\t%d were successfully processed'
           % (len(svs_paths), success_count))
-    print(f'To compute mask accuracy, please run compute_mask_accuracy.py {args.save_dir}')
+
+    # If run compute_mask_accuracy.py at the end
+    if args.compute_accuracy:
+        compute_acc_parser = ComputeMaskAccuracy.get_parser()
+        args = compute_acc_parser.parse_args([args.save_dir] \
+            + [os.path.join(os.path.abspath(d), 'groundtruth') for d in args.svs_dirs])
+        ComputeMaskAccuracy(args)
+    else:
+        print(f'To compute mask accuracy, please run compute_mask_accuracy.py {args.save_dir}')
 
 
 if __name__ == '__main__':
