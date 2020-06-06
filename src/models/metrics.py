@@ -59,5 +59,10 @@ class SparseIoU(metrics.MeanIoU):
         iou = tf.math.divide_no_nan(true_positives, denominator)
 
         return iou[self.class_idx]
+
+    def get_config(self):
+        config = {'class_idx': self.class_idx}
+        base_config = super(SparseIoU, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
     # pylint: enable=unexpected-keyword-arg, no-value-for-parameter
 # pylint: enable=too-many-ancestors
