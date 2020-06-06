@@ -15,11 +15,10 @@ from tensorflow import keras
 from tensorflow.keras import optimizers, metrics, callbacks
 from tensorflow.keras.mixed_precision import experimental as mixed_precision
 
-from models.FCN import fcn_model
-from models.UNet import unet_model_no_pad, unet_model_zero_pad
-from models.metrics import SparseIoU, SparseMeanIoU, SparseConfusionMatrix
-from models.losses import get_loss_func
-from utils.dataset import generate_dataset, load_dataset
+from networks.dataset import generate_dataset, load_dataset
+from networks.models.models import get_model
+from networks.metrics import SparseIoU, SparseMeanIoU, SparseConfusionMatrix
+from networks.losses import get_loss_func
 
 def get_parser() -> argparse.ArgumentParser:
     """Get the argparse parser for this script"""
@@ -88,24 +87,6 @@ def set_keras_mixed_precision_policy(policy_name: str) -> None:
     """Set tf.keras mixed precision"""
     policy = mixed_precision.Policy(policy_name)
     mixed_precision.set_policy(policy)
-
-def get_model(model_name: str) -> keras.Model:
-    """Get the keras.Model based on input"""
-    if model_name == 'UNet_No_Pad':
-        return unet_model_no_pad(output_channels=3)
-    if model_name == 'UNet_No_Pad_3Layer':
-        return unet_model_no_pad(output_channels=3,
-                                 unet_layers=3,
-                                 model_name='UNet_No_Pad_3Layer')
-    if model_name == 'UNet_Zero_Pad':
-        return unet_model_zero_pad(output_channels=3)
-    if model_name == 'UNet_Zero_Pad_3Layer':
-        return unet_model_zero_pad(output_channels=3,
-                                   unet_layers=3,
-                                   model_name='UNet_Zero_Pad_3Layer')
-    if model_name == 'FCN':
-        return fcn_model(classes=3, bn=True)
-    raise ValueError('Unknown model')
 
 def log_configs(log_dir: str, dataset_filepath: str,
                 train_dataset, val_dataset, args) -> None:

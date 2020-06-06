@@ -12,8 +12,8 @@ import numpy as np
 from tqdm import tqdm
 from tensorflow.keras.utils import Sequence
 
-from .svs_to_png import svs_to_numpy
-from .numpy_pil_helper import numpy_to_pil_binary, numpy_to_pil_palette
+from utils.svs_to_png import svs_to_numpy
+from utils.numpy_pil_helper import numpy_to_pil_binary, numpy_to_pil_palette
 
 Image.MAX_IMAGE_PIXELS = None
 VAL_PROP = 1/3

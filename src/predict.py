@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
 """Predicting Script"""
-
 import os
 import gc
 import argparse
@@ -14,12 +13,11 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.mixed_precision import experimental as mixed_precision
 
-from models.FCN import fcn_model
-from models.UNet import unet_model_zero_pad
-from models.metrics import SparseIoU, SparseMeanIoU, SparseConfusionMatrix
-from utils.dataset import generate_predict_dataset, get_patch_paths_and_coords, \
+from networks.dataset import generate_predict_dataset, get_patch_paths_and_coords, \
         reconstruct_predicted_masks, save_predicted_masks, \
         BrainSegPredictSequence
+from networks.models.models import get_model
+from networks.metrics import SparseIoU, SparseMeanIoU, SparseConfusionMatrix
 
 def get_parser() -> argparse.ArgumentParser:
     """Get the argparse parser for this script"""
@@ -36,7 +34,10 @@ def get_parser() -> argparse.ArgumentParser:
         "--ckpt-weights-only", action='store_true',
         help="Checkpoints will only save the model weights (Default: False)")
     ckpt_parser.add_argument(
-        '--model', choices=['UNet', 'FCN'],
+        '--model',
+        choices=['UNet_No_Pad', 'UNet_No_Pad_3Layer',
+                 'UNet_Zero_Pad', 'UNet_Zero_Pad_3Layer',
+                 'FCN'],
         help="Network model used for predicting")
 
     dataset_parser = main_parser.add_argument_group('Dataset configurations')
@@ -114,10 +115,7 @@ def predict(args):
 
     # Create network model
     if args.ckpt_weights_only:
-        if args.model == 'UNet':
-            model = unet_model_zero_pad(output_channels=3)
-        elif args.model == 'FCN':
-            model = fcn_model(classes=3, bn=True)
+        model = get_model(args.model)
         model.load_weights(args.ckpt_filepath).assert_existing_objects_matched()
         print('Model weights loaded')
     else:
