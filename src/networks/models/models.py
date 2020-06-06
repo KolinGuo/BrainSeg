@@ -1,4 +1,4 @@
-
+"""Model Script Used By train.py and predict.py"""
 from tensorflow import keras
 
 from .FCN import fcn_model
@@ -21,4 +21,3 @@ def get_model(model_name: str) -> keras.Model:
     if model_name == 'FCN':
         return fcn_model(classes=3, bn=True)
     raise ValueError('Unknown model')
-
