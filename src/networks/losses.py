@@ -41,6 +41,11 @@ class BalancedSCCE(losses.SparseCategoricalCrossentropy):
         # pylint: enable=no-value-for-parameter
         return super(BalancedSCCE, self).__call__(y_true, y_pred, sample_weight)
 
+    def get_config(self):
+        config = {'class_weight': self.class_weight}
+        base_config = super(BalancedSCCE, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 def focal_loss(y_true, y_pred, gamma=2.0, from_logits=False, axis=-1):
     """Computes and returns a focal loss"""
     y_pred = tf.convert_to_tensor(y_pred)
@@ -106,3 +111,8 @@ class BalancedSparseFocalLoss(SparseFocalLoss):
         # pylint: enable=no-value-for-parameter
         return super(BalancedSparseFocalLoss, self).\
                 __call__(y_true, y_pred, sample_weight)
+
+    def get_config(self):
+        config = {'class_weight': self.class_weight}
+        base_config = super(BalancedSparseFocalLoss, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
