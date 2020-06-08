@@ -11,12 +11,11 @@ import argcomplete
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
-from tensorflow import keras
 from tensorflow.keras import optimizers, metrics, callbacks
 from tensorflow.keras.mixed_precision import experimental as mixed_precision
 
 from networks.dataset import generate_dataset, load_dataset
-from networks.models.models import get_model
+from networks.models.models import get_model, load_whole_model
 from networks.metrics import SparseIoU, SparseMeanIoU, SparseConfusionMatrix
 from networks.losses import get_loss_func
 
@@ -80,6 +79,14 @@ def get_parser() -> argparse.ArgumentParser:
         "--file-suffix", type=str,
         default=datetime.now().strftime("%Y%m%d_%H%M%S"),
         help="Suffix for ckpt file and log file (Default: current timestamp)")
+
+    testing_parser = main_parser.add_argument_group('Testing configurations')
+    testing_parser.add_argument(
+        "--steps-per-epoch", type=int, default=-1,
+        help="Training steps per epoch (Testing only, don't modify)")
+    testing_parser.add_argument(
+        "--val-steps", type=int, default=-1,
+        help="Validation steps (Testing only, don't modify)")
 
     return main_parser
 
@@ -220,13 +227,8 @@ def train(args) -> None:
                     .assert_existing_objects_matched()
             print('Model weights loaded')
         else:
-            model = keras.models.load_model(
-                args.ckpt_filepath,
-                custom_objects={
-                    'SparseMeanIoU': SparseMeanIoU,
-                    'SparseConfusionMatrix': SparseConfusionMatrix,
-                    'SparseIoU': SparseIoU})
-            print('Full model (weights + optimizer state) loaded')
+            model = load_whole_model(args.ckpt_filepath)
+            print('Whole model (weights + optimizer state) loaded')
 
         initial_epoch = int(args.ckpt_filepath.split('/')[-1]\
                 .split('-')[1])
@@ -273,10 +275,12 @@ def train(args) -> None:
     model.fit(
         train_dataset,
         epochs=args.num_epochs,
-        steps_per_epoch=len(train_dataset),
+        steps_per_epoch=len(train_dataset) \
+                if args.steps_per_epoch == -1 else args.steps_per_epoch,
         initial_epoch=initial_epoch,
         validation_data=val_dataset,
-        validation_steps=len(val_dataset) // args.val_subsplits,
+        validation_steps=len(val_dataset) // args.val_subsplits \
+                if args.val_steps == -1 else args.val_steps,
         callbacks=[cp_callback, tb_callback, nan_callback, cm_callback],
         workers=os.cpu_count(),
         use_multiprocessing=True)
