@@ -127,6 +127,8 @@ def predict(args):
 
     # Create network model
     if args.ckpt_weights_only:
+        if args.ckpt_filepath.endswith('.index'):   # Get rid of the suffix
+            args.ckpt_filepath = args.ckpt_filepath.replace('.index', '')
         model = get_model(args.model)
         model.load_weights(args.ckpt_filepath).assert_existing_objects_matched()
         print('Model weights loaded')

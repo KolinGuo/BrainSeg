@@ -218,13 +218,10 @@ def train(args) -> None:
     # Check if resume from training
     initial_epoch = 0
     if args.ckpt_filepath is not None:
-        if args.ckpt_filepath.endswith('.index'):
-            args.ckpt_filepath \
-                    = args.ckpt_filepath.replace('.index', '')
-
         if args.ckpt_weights_only:
-            model.load_weights(args.ckpt_filepath)\
-                    .assert_existing_objects_matched()
+            if args.ckpt_filepath.endswith('.index'):   # Get rid of the suffix
+                args.ckpt_filepath = args.ckpt_filepath.replace('.index', '')
+            model.load_weights(args.ckpt_filepath).assert_existing_objects_matched()
             print('Model weights loaded')
         else:
             model = load_whole_model(args.ckpt_filepath)
