@@ -1,14 +1,17 @@
 """Test Cases for Custom losses based on tf.keras.losses"""
 
+# pylint: disable=wrong-import-position
 import sys
 import unittest
 from typing import List
 
 import numpy as np
 from tensorflow.keras import losses
-from src.models.losses import BalancedSCCE, SparseFocalLoss, \
+
+sys.path.append("/BrainSeg/src/")
+from networks.losses import BalancedSCCE, SparseFocalLoss, \
         BalancedSparseFocalLoss
-sys.path.append("..")
+# pylint: enable=wrong-import-position
 
 class TestBalancedSCCE(unittest.TestCase):
     """Testing the Balanced SCCE implementation"""
