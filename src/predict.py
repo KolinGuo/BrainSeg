@@ -13,11 +13,10 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.mixed_precision import experimental as mixed_precision
 
-from networks.dataset import generate_predict_dataset, get_patch_paths_and_coords, \
-        reconstruct_predicted_masks, save_predicted_masks, \
-        BrainSegPredictSequence
-from networks.models.models import get_model
-from networks.metrics import SparseIoU, SparseMeanIoU, SparseConfusionMatrix
+from networks.dataset import generate_predict_dataset, \
+        get_patch_paths_and_coords, reconstruct_predicted_masks, \
+        save_predicted_masks, BrainSegPredictSequence
+from networks.models.models import get_model, load_whole_model
 from utils.compute_mask_accuracy import ComputeMaskAccuracy
 
 def get_parser() -> argparse.ArgumentParser:
@@ -58,7 +57,15 @@ def get_parser() -> argparse.ArgumentParser:
         help="Output directory (Default: /BrainSeg/data/outputs/model_name)")
     predict_parser.add_argument(
         "--compute-accuracy", action='store_true',
-        help="Checkpoints will only save the model weights (Default: False)")
+        help="Compute accuracy after predicting the dataset (Default: False)")
+
+    testing_parser = main_parser.add_argument_group('Testing configurations')
+    testing_parser.add_argument(
+        "--test-svs-idx", type=int, default=-1,
+        help="Test predicting svs index (Testing only, don't modify)")
+    testing_parser.add_argument(
+        "--predict-one-round", action='store_true',
+        help="Only predict one round (Default: False; Testing only, don't modify)")
 
     return main_parser
 
@@ -81,7 +88,8 @@ def predict_svs(model: keras.Model, args,
         (num_patches, args.patch_size, args.patch_size, 3), dtype=np.float32)
     num_patch_per_round = 5*1024**3 // \
             (np.prod(patch_masks.shape[1:]) * patch_masks.itemsize)
-    num_rounds = int(np.ceil(num_patches / num_patch_per_round))
+    num_rounds = int(np.ceil(num_patches / num_patch_per_round)) \
+            if not args.predict_one_round else 1
     print(f'\tBeginning {num_rounds} rounds of prediction')
     for i in range(num_rounds):
         start_p = i * num_patch_per_round
@@ -123,19 +131,18 @@ def predict(args):
         model.load_weights(args.ckpt_filepath).assert_existing_objects_matched()
         print('Model weights loaded')
     else:
-        model = keras.models.load_model(
-            args.ckpt_filepath,
-            custom_objects={
-                'SparseMeanIoU': SparseMeanIoU,
-                'SparseConfusionMatrix': SparseConfusionMatrix,
-                'SparseIoU': SparseIoU})
-        print('Full model (weights + optimizer state) loaded')
+        model = load_whole_model(args.ckpt_filepath)
+        print('Whole model (weights + optimizer state) loaded')
 
     # Create output directory
     args.save_dir = os.path.join(os.path.abspath(args.save_dir), model.name)
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
     print(f'\tSaving predicted mask to "{args.save_dir}"')
+
+    # If in testing mode, test only the svs of that index
+    if args.test_svs_idx != -1:
+        svs_paths = [svs_paths[args.test_svs_idx]]
 
     success_count = 0
     for svs_path in tqdm(svs_paths):
