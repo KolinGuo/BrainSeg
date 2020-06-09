@@ -278,9 +278,8 @@ def train(args) -> None:
         validation_data=val_dataset,
         validation_steps=len(val_dataset) // args.val_subsplits \
                 if args.val_steps == -1 else args.val_steps,
-        callbacks=[cp_callback, tb_callback, nan_callback, cm_callback],
-        workers=os.cpu_count(),
-        use_multiprocessing=True)
+        callbacks=[cp_callback, tb_callback, nan_callback, cm_callback])
+    # TODO: Switch to tf.data
 
     print('Training finished!')
 

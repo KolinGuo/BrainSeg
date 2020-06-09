@@ -102,9 +102,8 @@ def predict_svs(model: keras.Model, args,
         # Pass to model for prediction
         patch_masks[start_p:end_p, ...] \
                 = model.predict(patches_dataset,
-                                verbose=1,
-                                workers=os.cpu_count(),
-                                use_multiprocessing=True)
+                                verbose=1)
+        # TODO: Switch to tf.data
 
     # Reconstruct whole image from patch_masks
     mask_arr = reconstruct_predicted_masks(patch_masks, patch_coords)
