@@ -11,9 +11,9 @@ REPONAME="BrainSeg"
 JUPYTERPORT="9000"
 TENSORBOARDPORT="6006"
 
-COMMANDTOINSTALL="cd /BrainSeg/src/gSLICr && rm -rf build && mkdir build && cd build && cmake .. && make -j$(nproc) && cd /BrainSeg"
-COMMANDTORUN="jupyter notebook --no-browser --ip=0.0.0.0 --allow-root --port=$JUPYTERPORT &"
-COMMANDTOSTARTCONTAINER="docker start -ai $CONTNAME"
+COMMANDTOINSTALLGSLICR="cd /${REPONAME}/src/gSLICr && rm -rf build && mkdir build && cd build && cmake .. && make -j$(nproc) && cd /BrainSeg"
+COMMANDTORUNTENSORBOARD="tensorboard --logdir /${REPONAME}/tf_logs/ --port ${TENSORBOARDPORT} --host 0.0.0.0 >/dev/null 2>&1 &"
+COMMANDTOSTARTCONTAINER="docker start -ai ${CONTNAME}"
 
 ############################################################
 # Section 1: Helper Function Definition                    #
@@ -133,17 +133,17 @@ echo -e "\e[1;36m"
 EOF
 
   # If there is an installing command inside docker container
-  if [ ! -z "$COMMANDTOINSTALL" ] ; then
-    echo -n COMMANDTOINSTALL=\" >> bashrc \
-      && echo -n ${COMMANDTOINSTALL} | sed 's/\"/\\"/g' >> bashrc \
+  if [ ! -z "$COMMANDTOINSTALLGSLICR" ] ; then
+    echo -n COMMANDTOINSTALLGSLICR=\" >> bashrc \
+      && echo -n ${COMMANDTOINSTALLGSLICR} | sed 's/\"/\\"/g' >> bashrc \
       && echo \" >> bashrc \
       && echo >> bashrc
   fi
 
   # Echo command to run the application
-  if [ ! -z "$COMMANDTORUN" ] ; then
-    echo -n COMMANDTORUN=\" >> bashrc \
-      && echo -n ${COMMANDTORUN} | sed 's/\"/\\"/g' >> bashrc \
+  if [ ! -z "$COMMANDTORUNTENSORBOARD" ] ; then
+    echo -n COMMANDTORUNTENSORBOARD=\" >> bashrc \
+      && echo -n ${COMMANDTORUNTENSORBOARD} | sed 's/\"/\\"/g' >> bashrc \
       && echo \" >> bashrc \
       && echo >> bashrc
   fi
@@ -151,11 +151,11 @@ EOF
   # Echo the echo command to print instructions
   echo echo -e \"\" >> bashrc
   echo echo -e \"################################################################################\\n\" >> bashrc
-  if [ ! -z "$COMMANDTOINSTALL" ] ; then
-    echo echo -e \"\\tCommand to install ${REPONAME} for the first time:\\n\\t\\t'${COMMANDTOINSTALL}'\\n\" >> bashrc
+  if [ ! -z "$COMMANDTOINSTALLGSLICR" ] ; then
+    echo echo -e \"\\tCommand to install gSLICr for the first time:\\n\\t\\t'${COMMANDTOINSTALLGSLICR}'\\n\" >> bashrc
   fi
-  if [ ! -z "$COMMANDTORUN" ] ; then
-    echo echo -e \"\\tCommand to run:\\n\\t\\t'${COMMANDTORUN}'\\n\" >> bashrc
+  if [ ! -z "$COMMANDTORUNTENSORBOARD" ] ; then
+    echo echo -e \"\\tCommand to run:\\n\\t\\t'${COMMANDTORUNTENSORBOARD}'\\n\" >> bashrc
   fi
   echo echo -e \"################################################################################\\n\" >> bashrc \
     && echo >> bashrc
