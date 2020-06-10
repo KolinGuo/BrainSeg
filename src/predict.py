@@ -37,6 +37,7 @@ def get_parser() -> argparse.ArgumentParser:
         '--model',
         choices=['UNet_No_Pad', 'UNet_No_Pad_3Layer',
                  'UNet_Zero_Pad', 'UNet_Zero_Pad_3Layer',
+                 'UNet_Zero_Pad_2019O',
                  'FCN'],
         help="Network model used for predicting")
 
