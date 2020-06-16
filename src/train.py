@@ -16,7 +16,8 @@ from tensorflow.keras.mixed_precision import experimental as mixed_precision
 
 from networks.dataset import generate_dataset, load_dataset
 from networks.models.models import get_model, load_whole_model
-from networks.metrics import SparseIoU, SparseMeanIoU, SparseConfusionMatrix
+from networks.metrics import SparseIoU, SparseMeanIoU, SparsePixelAccuracy, \
+        SparseMeanAccuracy, SparseFreqIoU, SparseConfusionMatrix
 from networks.losses import get_loss_func
 
 def get_parser() -> argparse.ArgumentParser:
@@ -207,6 +208,9 @@ def train(args) -> None:
                                      gamma=args.focal_loss_gamma),
                   metrics=[metrics.SparseCategoricalAccuracy(),
                            SparseMeanIoU(num_classes=3, name='IoU/Mean'),
+                           SparsePixelAccuracy(num_classes=3, name='PixelAcc'),
+                           SparseMeanAccuracy(num_classes=3, name='MeanAcc'),
+                           SparseFreqIoU(num_classes=3, name='IoU/Freq_weighted'),
                            SparseConfusionMatrix(num_classes=3, name='cm')] \
             + SparseIoU.get_iou_metrics(num_classes=3, class_names=class_names))
 

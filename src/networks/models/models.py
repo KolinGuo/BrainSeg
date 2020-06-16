@@ -1,7 +1,8 @@
 """Model Script Used By train.py and predict.py"""
 from tensorflow import keras
 
-from networks.metrics import SparseIoU, SparseMeanIoU, SparseConfusionMatrix
+from networks.metrics import SparseIoU, SparseMeanIoU, SparsePixelAccuracy, \
+        SparseMeanAccuracy, SparseFreqIoU, SparseConfusionMatrix
 from networks.losses import BalancedSCCE, SparseFocalLoss, BalancedSparseFocalLoss
 
 from .FCN import fcn_model
@@ -51,4 +52,7 @@ def load_whole_model(ckpt_filepath: str) -> keras.Model:
             'BalancedSparseFocalLoss': BalancedSparseFocalLoss,
             'SparseIoU': SparseIoU,
             'SparseMeanIoU': SparseMeanIoU,
+            'SparsePixelAccuracy': SparsePixelAccuracy,
+            'SparseMeanAccuracy': SparseMeanAccuracy,
+            'SparseFreqIoU': SparseFreqIoU,
             'SparseConfusionMatrix': SparseConfusionMatrix})
