@@ -98,12 +98,7 @@ def fcn_model(classes=3, drop_out_rate=0.2, bn=True) -> keras.Model:
     fuse_1 = layers.Concatenate()([up_conv7, up_pool4])
     fuse_2 = layers.Concatenate()([fuse_1, pool3])
 
-    # add three layers of convolution to perform additional learning on skip archiecture
-    conv8 = layers.Conv2D(filters=64, kernel_size=3, strides=1, padding="same")(fuse_2)
-    conv9 = layers.Conv2D(filters=32, kernel_size=3, strides=1, padding="same")(conv8)
-    conv10 = layers.Conv2D(filters=16, kernel_size=1, strides=1, padding="same")(conv9)
-
-    prob = upsample(filters=classes, size=16, strides=8)(conv10)
+    prob = upsample(filters=classes, size=16, strides=8)(fuse_2)
     model = keras.Model(inputs=input_imgs, outputs=prob)
 
     print(model.summary())
