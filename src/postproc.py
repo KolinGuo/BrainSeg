@@ -39,6 +39,105 @@ def get_parser() -> argparse.ArgumentParser:
 
     return main_parser
 
+def method_1(mask_arr: "NDArray[np.uint8]") -> "NDArray[np.uint8]":
+    """Binary_opening for GM and WM"""
+    gray_mask_arr = (mask_arr == 1)
+    white_mask_arr = (mask_arr == 2)
+    del mask_arr
+
+    # Apply morphological opening on GM
+    gray_mask_arr = ndimage.binary_opening(gray_mask_arr, morphology.disk(radius=8))
+
+    # Apply morphological opening on WM
+    white_mask_arr = ndimage.binary_opening(white_mask_arr, morphology.disk(radius=8))
+
+    # Reconstruct mask_arr
+    mask_arr = np.zeros_like(gray_mask_arr, dtype='uint8')
+    mask_arr[gray_mask_arr] = 1
+    mask_arr[white_mask_arr] = 2
+    del gray_mask_arr, white_mask_arr
+    return mask_arr
+
+def method_2(mask_arr: "NDArray[np.uint8]") -> "NDArray[np.uint8]":
+    """Area_opening followed by area_closing (Remove local maxima and minima)"""
+
+    # Apply area_opening to remove local maxima with area < 200000 px
+    mask_arr = morphology.area_opening(mask_arr, area_threshold=200000)
+    print('Finish area_opening')
+
+    # Apply area_closing to remove local minima with area < 200000 px
+    mask_arr = morphology.area_closing(mask_arr, area_threshold=200000)
+    print('Finish area_closing')
+
+    return mask_arr
+
+def method_3(mask_img: "Image", down_factor=4) -> "NDArray[np.uint8]":
+    """Downsample => 
+    Area_opening followed by area_closing (Remove local maxima and minima) =>
+    Upsample"""
+
+    width, height = mask_img.width, mask_img.height
+
+    # Downsample the image
+    mask_arr = np.array(mask_img.resize((width // down_factor, height // down_factor), Image.NEAREST))
+    del mask_img
+    print('Finish downsampling')
+
+    # Apply area_opening to remove local maxima with area < 200000 px
+    mask_arr = morphology.area_opening(mask_arr, area_threshold=320000 // down_factor**2)
+    print('Finish area_opening')
+
+    # Apply area_closing to remove local minima with area < 200000 px
+    mask_arr = morphology.area_closing(mask_arr, area_threshold=320000 // down_factor**2)
+    print('Finish area_closing')
+
+    # Upsample the output
+    mask_arr = np.array(Image.fromarray(mask_arr).resize((width, height), Image.NEAREST))
+    print('Finish upsampling')
+
+    return mask_arr
+
+def method_4(mask_img: "Image", down_factor=4) -> "NDArray[np.uint8]":
+    """Downsample => Area_opening (Remove local maxima) =>
+    Swap index of GM and WM => Area_opening => Swap index back =>
+    Upsample"""
+    def swap_GM_WM(arr):
+        """Swap GM and WM in arr (swaps index 1 and index 2)"""
+        arr_1 = (arr == 1)
+        arr[arr == 2] = 1
+        arr[arr_1] = 2
+        del arr_1
+        return arr
+
+    width, height = mask_img.width, mask_img.height
+
+    # Downsample the image
+    mask_arr = np.array(mask_img.resize((width // down_factor, height // down_factor), Image.NEAREST))
+    del mask_img
+    print('Finish downsampling')
+
+    # Apply area_opening to remove local maxima with area < 200000 px
+    mask_arr = morphology.area_opening(mask_arr, area_threshold=320000 // down_factor**2)
+    print('Finish area_opening #1')
+
+    # Swap index of GM and WM
+    mask_arr = swap_GM_WM(mask_arr)
+    print('Finish swapping index')
+
+    # Apply area_opening to remove local maxima with area < 200000 px
+    mask_arr = morphology.area_opening(mask_arr, area_threshold=320000 // down_factor**2)
+    print('Finish area_opening #2')
+
+    # Swap index back
+    mask_arr = swap_GM_WM(mask_arr)
+    print('Finish swapping index back')
+
+    # Upsample the output
+    mask_arr = np.array(Image.fromarray(mask_arr).resize((width, height), Image.NEAREST))
+    print('Finish upsampling')
+
+    return mask_arr
+
 def post_proc(args) -> None:
     """Start post processing based on args input"""
     # Convert to abspath
@@ -58,22 +157,23 @@ def post_proc(args) -> None:
     for mask_path in tqdm(mask_paths):
         svs_name = mask_path.split('/')[-1].replace('.png', '')
 
-        mask_arr = np.array(Image.open(mask_path))
-        gray_mask_arr = (mask_arr == 1)
-        white_mask_arr = (mask_arr == 1)
-        del mask_arr
+        ##### Method 1 #####
+        #mask_arr = np.array(Image.open(mask_path))
+        #mask_arr = method_1(mask_arr)
 
-        # Apply morphological opening on GM
-        gray_mask_arr = ndimage.binary_opening(gray_mask_arr, morphology.disk(radius=8))
+        ##### Method 2 #####
+        #mask_arr = np.array(Image.open(mask_path))
+        #mask_arr = method_2(mask_arr)
 
-        # Apply morphological opening on WM
-        white_mask_arr = ndimage.binary_opening(white_mask_arr, morphology.disk(radius=8))
+        ##### Method 3 #####
+        #mask_img = Image.open(mask_path)
+        #mask_arr = method_3(mask_img)
+        #del mask_img
 
-        # Reconstruct mask_arr
-        mask_arr = np.zeros_like(gray_mask_arr, dtype='uint8')
-        mask_arr[gray_mask_arr] = 1
-        mask_arr[white_mask_arr] = 2
-        del gray_mask_arr, white_mask_arr
+        ##### Method 4 #####
+        mask_img = Image.open(mask_path)
+        mask_arr = method_4(mask_img)
+        del mask_img
 
         save_predicted_masks(mask_arr, save_dir, svs_name)
         del mask_arr
