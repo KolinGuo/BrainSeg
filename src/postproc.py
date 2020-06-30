@@ -232,6 +232,27 @@ def method_6(mask_img: "Image", down_factor=4) -> "NDArray[np.uint8]":
 
     return mask_arr
 
+def get_boundary(mask_arr: "NDArray[np.uint8]") -> "NDArray[np.uint8]":
+    """Extract GM/WM boundary"""
+    gray_mask_arr = (mask_arr == 1)
+    white_mask_arr = (mask_arr == 2)
+    del mask_arr
+
+    # Extract GM boundary
+    gray_mask_arr ^= ndimage.binary_erosion(gray_mask_arr, morphology.square(width=3))
+    print('Finish GM boundary')
+
+    # Extract WM boundary
+    white_mask_arr ^= ndimage.binary_erosion(white_mask_arr, morphology.square(width=3))
+    print('Finish WM boundary')
+
+    # Reconstruct mask_arr
+    mask_arr = np.zeros_like(gray_mask_arr, dtype='uint8')
+    mask_arr[gray_mask_arr] = 1
+    mask_arr[white_mask_arr] = 2
+    del gray_mask_arr, white_mask_arr
+    return mask_arr
+
 def post_proc(args) -> None:
     """Start post processing based on args input"""
     # Convert to abspath
@@ -274,10 +295,14 @@ def post_proc(args) -> None:
         #mask_arr = method_5(mask_img)
         #del mask_img
 
-        ##### Method 6 #####
-        mask_img = Image.open(mask_path)
-        mask_arr = method_6(mask_img)
-        del mask_img
+        ##### Method 6 ##### TODO
+        #mask_img = Image.open(mask_path)
+        #mask_arr = method_6(mask_img)
+        #del mask_img
+
+        ##### Get boundary #####
+        mask_arr = np.array(Image.open(mask_path))
+        mask_arr = get_boundary(mask_arr)
 
         save_predicted_masks(mask_arr, save_dir, svs_name)
         del mask_arr
