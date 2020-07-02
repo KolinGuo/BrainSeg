@@ -37,6 +37,7 @@ def get_parser() -> argparse.ArgumentParser:
         '--model',
         choices=['UNet_No_Pad', 'UNet_No_Pad_3Layer',
                  'UNet_Zero_Pad', 'UNet_Zero_Pad_3Layer',
+                 'UNet_Zero_Pad_2019O',
                  'FCN'],
         help="Network model used for predicting")
 
@@ -102,9 +103,8 @@ def predict_svs(model: keras.Model, args,
         # Pass to model for prediction
         patch_masks[start_p:end_p, ...] \
                 = model.predict(patches_dataset,
-                                verbose=1,
-                                workers=os.cpu_count(),
-                                use_multiprocessing=True)
+                                verbose=1)
+        # TODO: Switch to tf.data
 
     # Reconstruct whole image from patch_masks
     mask_arr = reconstruct_predicted_masks(patch_masks, patch_coords)
