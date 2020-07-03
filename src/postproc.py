@@ -26,7 +26,7 @@ def get_parser() -> argparse.ArgumentParser:
 
     post_proc_parser = main_parser.add_argument_group('Post processing configurations')
     post_proc_parser.add_argument(
-        "mask_dir", type=str, 
+        "mask_dir", type=str,
         help="Directory of predicted mask files (e.g. data/outputs/UNet)")
     post_proc_parser.add_argument(
         "--truth-dirs", type=str, nargs='+',
@@ -72,14 +72,15 @@ def method_2(mask_arr: "NDArray[np.uint8]") -> "NDArray[np.uint8]":
     return mask_arr
 
 def method_3(mask_img: "Image", down_factor=4) -> "NDArray[np.uint8]":
-    """Downsample => 
+    """Downsample =>
     Area_opening followed by area_closing (Remove local maxima and minima) =>
     Upsample"""
 
     width, height = mask_img.width, mask_img.height
 
     # Downsample the image
-    mask_arr = np.array(mask_img.resize((width // down_factor, height // down_factor), Image.NEAREST))
+    mask_arr = np.array(
+        mask_img.resize((width // down_factor, height // down_factor), Image.NEAREST))
     del mask_img
     print('Finish downsampling')
 
@@ -101,6 +102,7 @@ def method_4(mask_img: "Image", down_factor=4) -> "NDArray[np.uint8]":
     """Downsample => Area_opening (Remove local maxima) =>
     Swap index of GM and WM => Area_opening => Swap index back =>
     Upsample"""
+    # pylint: disable=invalid-name
     def swap_GM_WM(arr):
         """Swap GM and WM in arr (swaps index 1 and index 2)"""
         arr_1 = (arr == 1)
@@ -108,11 +110,13 @@ def method_4(mask_img: "Image", down_factor=4) -> "NDArray[np.uint8]":
         arr[arr_1] = 2
         del arr_1
         return arr
+    # pylint: enable=invalid-name
 
     width, height = mask_img.width, mask_img.height
 
     # Downsample the image
-    mask_arr = np.array(mask_img.resize((width // down_factor, height // down_factor), Image.NEAREST))
+    mask_arr = np.array(
+        mask_img.resize((width // down_factor, height // down_factor), Image.NEAREST))
     del mask_img
     print('Finish downsampling')
 
@@ -142,6 +146,7 @@ def method_5(mask_img: "Image", down_factor=4) -> "NDArray[np.uint8]":
     """Downsample => Area_opening (Remove local maxima) =>
     Swap index of GM and WM => Area_opening => Swap index back =>
     Morphological opening => Upsample"""
+    # pylint: disable=invalid-name
     def swap_GM_WM(arr):
         """Swap GM and WM in arr (swaps index 1 and index 2)"""
         arr_1 = (arr == 1)
@@ -149,11 +154,13 @@ def method_5(mask_img: "Image", down_factor=4) -> "NDArray[np.uint8]":
         arr[arr_1] = 2
         del arr_1
         return arr
+    # pylint: enable=invalid-name
 
     width, height = mask_img.width, mask_img.height
 
     # Downsample the image
-    mask_arr = np.array(mask_img.resize((width // down_factor, height // down_factor), Image.NEAREST))
+    mask_arr = np.array(
+        mask_img.resize((width // down_factor, height // down_factor), Image.NEAREST))
     del mask_img
     print('Finish downsampling')
 
@@ -187,6 +194,7 @@ def method_6(mask_img: "Image", down_factor=4) -> "NDArray[np.uint8]":
     """Downsample => Area_opening (Remove local maxima) =>
     Swap index of GM and WM => Area_opening => Swap index back =>
     Area_closing => Morphological opening => Upsample"""
+    # pylint: disable=invalid-name
     def swap_GM_WM(arr):
         """Swap GM and WM in arr (swaps index 1 and index 2)"""
         arr_1 = (arr == 1)
@@ -194,11 +202,13 @@ def method_6(mask_img: "Image", down_factor=4) -> "NDArray[np.uint8]":
         arr[arr_1] = 2
         del arr_1
         return arr
+    # pylint: enable=invalid-name
 
     width, height = mask_img.width, mask_img.height
 
     # Downsample the image
-    mask_arr = np.array(mask_img.resize((width // down_factor, height // down_factor), Image.NEAREST))
+    mask_arr = np.array(
+        mask_img.resize((width // down_factor, height // down_factor), Image.NEAREST))
     del mask_img
     print('Finish downsampling')
 
@@ -258,7 +268,7 @@ def post_proc(args) -> None:
     # Convert to abspath
     args.mask_dir = os.path.abspath(args.mask_dir)
     # Glob mask .png filepaths
-    mask_paths = sorted([p for p in glob.glob(os.path.join(args.mask_dir, "*.png")) 
+    mask_paths = sorted([p for p in glob.glob(os.path.join(args.mask_dir, "*.png"))
                          if 'Gray' not in p and 'White' not in p and 'Back' not in p])
     print(f'\n\tFound {len(mask_paths)} masks in {args.mask_dir}')
 
