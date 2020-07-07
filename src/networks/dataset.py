@@ -592,6 +592,102 @@ def generate_dataset(data_dir_AD: str, data_dir_control: str,
     # pylint: enable=too-many-locals
     return save_svs_file, save_train_file, save_val_file
 
+def _split_trainval_five_fold_dataset(fold_num: int) \
+        -> Dict[int, "NDArray[int]"]:
+    """Split and save data into train/val five-fold dataset"""
+    # Train/Val Dataset Division
+    # AD: ['4299', '4092', | '4077', '3777', | '4391', '4195', |
+    #      '4471', '4450', '4463', | '4256', '4160', '4107']
+    # CONTROL: ['4993', '4972', | '4971', '5010', | '4967', '4992', |
+    #           '4944', | '4894']
+    TRAIN_WSI = {1: ['4077', '3777', '4971', '5010', '4391', '4195', '4967', '4992',
+                     '4471', '4450', '4463', '4944', '4256', '4160', '4107', '4894'],
+                 2: ['4299', '4092', '4993', '4972', '4391', '4195', '4967', '4992',
+                     '4471', '4450', '4463', '4944', '4256', '4160', '4107', '4894'],
+                 3: ['4299', '4092', '4993', '4972', '4077', '3777', '4971', '5010',
+                     '4471', '4450', '4463', '4944', '4256', '4160', '4107', '4894'],
+                 4: ['4299', '4092', '4993', '4972', '4077', '3777', '4971', '5010',
+                     '4391', '4195', '4967', '4992', '4256', '4160', '4107', '4894'],
+                 5: ['4299', '4092', '4993', '4972', '4077', '3777', '4971', '5010',
+                     '4391', '4195', '4967', '4992', '4471', '4450', '4463', '4944']}
+    VAL_WSI = {1: ['4299', '4092', '4993', '4972'],
+               2: ['4077', '3777', '4971', '5010'],
+               3: ['4391', '4195', '4967', '4992'],
+               4: ['4471', '4450', '4463', '4944'],
+               5: ['4256', '4160', '4107', '4894']}
+
+    AD_WSI = ['3777', '4077', '4092', '4107', '4160', '4195', '4256', '4299', '4391',
+              '4450', '4463', '4471', '4553', '4626', '4672', '4675', '4691', '4695']
+    CONTROL_WSI = ['4894', '4907', '4944', '4945', '4967', '4971',
+                   '4972', '4992', '4993', '5010', '5015', '5029']
+
+    train_AD_idx = [AD_WSI.index(n) for n in TRAIN_WSI[fold_num] if n in AD_WSI]
+    train_control_idx = [CONTROL_WSI.index(n) for n in TRAIN_WSI[fold_num] if n in CONTROL_WSI]
+    val_AD_idx = [AD_WSI.index(n) for n in VAL_WSI[fold_num] if n in AD_WSI]
+    val_control_idx = [CONTROL_WSI.index(n) for n in VAL_WSI[fold_num] if n in CONTROL_WSI]
+
+    return {0: np.array(train_AD_idx), 1: np.array(val_AD_idx),
+            2: np.array(train_control_idx), 3: np.array(val_control_idx)}
+
+def generate_five_fold_dataset(data_dir_AD: str, data_dir_control: str,
+                               patch_size: int, fold_num: int) \
+        -> Tuple[str, str, str]:
+    """
+    Generate a five-fold dataset
+
+    Inputs:
+        data_dir_AD      : AD .svs directory path
+        data_dir_control : control .svs directory path
+        patch_size       : patch size
+        fold_num         : fold number
+    Outputs:
+        save_svs_file   : .txt file path of dataset descriptions
+        save_train_file : .npy file path of training data
+        save_val_file   : .npy file path of validation data
+    """
+    # pylint: disable=too-many-locals
+    print(f'Generating train/eval five-fold dataset: fold #{fold_num}')
+
+    # Convert to abspath
+    data_dir_AD = os.path.abspath(data_dir_AD)
+    data_dir_control = os.path.abspath(data_dir_control)
+
+    ##### Get svs and groundtruth paths #####
+    svs_AD_paths, svs_control_paths, truth_AD_paths, truth_control_paths \
+            = _get_svs_and_truth_paths(data_dir_AD, data_dir_control)
+
+    ##### Generate Patches #####
+    save_dir = os.path.join(os.path.dirname(data_dir_AD), f'patches_{patch_size}')
+
+    _, total_class_freq \
+            = _generate_patches(save_dir, patch_size,
+                                svs_AD_paths + svs_control_paths,
+                                truth_AD_paths + truth_control_paths)
+
+    ##### Split into train and validation dataset #####
+    save_svs_file = os.path.join(save_dir, 'dataset.txt')
+    save_train_file = os.path.join(save_dir, 'train.npy')
+    save_val_file = os.path.join(save_dir, 'val.npy')
+
+    train_val_idx = _split_trainval_five_fold_dataset(fold_num)
+
+    ##### Save train and validation dataset #####
+    train_paths, val_paths \
+            = _save_trainval_dataset(save_svs_file,
+                                     svs_AD_paths,
+                                     svs_control_paths,
+                                     train_val_idx,
+                                     total_class_freq)
+
+    _save_patches_paths(save_dir,
+                        save_train_file,
+                        save_val_file,
+                        train_paths,
+                        val_paths)
+
+    # pylint: enable=too-many-locals
+    return save_svs_file, save_train_file, save_val_file
+
 class BrainSegPredictSequence(Sequence):
     """BrainSeg Sequence for predict"""
     def __init__(self, image_paths: "NDArray[str]", batch_size: int) -> None:

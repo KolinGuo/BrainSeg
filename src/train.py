@@ -14,7 +14,8 @@ import tensorflow as tf
 from tensorflow.keras import optimizers, metrics, callbacks
 from tensorflow.keras.mixed_precision import experimental as mixed_precision
 
-from networks.dataset import generate_dataset, load_dataset
+from networks.dataset import generate_dataset, load_dataset, \
+        generate_five_fold_dataset
 from networks.models.models import get_model, load_whole_model
 from networks.metrics import SparseIoU, SparseMeanIoU, SparsePixelAccuracy, \
         SparseMeanAccuracy, SparseFreqIoU, SparseConfusionMatrix
@@ -48,6 +49,9 @@ def get_parser() -> argparse.ArgumentParser:
     dataset_parser.add_argument(
         "--val-subsplits", type=int, default=1,
         help="Number to divide total number of val data for each epoch")
+    dataset_parser.add_argument(
+        "--fold-num", type=int, choices=range(0, 6), default=0,
+        help="Perform 5-fold cross-validation if fold_num = [1, 2, 3, 4, 5]")
 
     train_parser = main_parser.add_argument_group('Training configurations')
     train_parser.add_argument(
@@ -192,6 +196,11 @@ def train(args) -> None:
             = generate_dataset(args.data_dir_AD, args.data_dir_control,
                                args.patch_size, force_regenerate=False)
 
+    if args.fold_num != 0:  # If using five-fold cross-validation
+        save_svs_file, save_train_file, save_val_file \
+                = generate_five_fold_dataset(args.data_dir_AD, args.data_dir_control,
+                                             args.patch_size, args.fold_num)
+
     # Load dataset
     train_dataset, val_dataset, class_weight \
             = load_dataset(save_svs_file, save_train_file, save_val_file,
@@ -219,6 +228,9 @@ def train(args) -> None:
                                  model.name+'-'+args.file_suffix)
     args.log_dir = os.path.join(args.log_dir, 'fit',
                                 model.name+'-'+args.file_suffix)
+    if args.fold_num != 0:  # If using five-fold cross-validation
+        args.ckpt_dir += f'_fold_{args.fold_num}'
+        args.log_dir += f'_fold_{args.fold_num}'
 
     # Check if resume from training
     initial_epoch = 0
@@ -274,6 +286,13 @@ def train(args) -> None:
     # Create a TerminateOnNaN callback
     nan_callback = callbacks.TerminateOnNaN()
 
+    # Create an EarlyStopping callback
+    es_callback = callbacks.EarlyStopping(monitor='val_IoU/Mean',
+                                          min_delta=0.01,
+                                          patience=3,
+                                          verbose=1,
+                                          mode='max')
+
     model.fit(
         train_dataset,
         epochs=args.num_epochs,
@@ -283,7 +302,7 @@ def train(args) -> None:
         validation_data=val_dataset,
         validation_steps=len(val_dataset) // args.val_subsplits \
                 if args.val_steps == -1 else args.val_steps,
-        callbacks=[cp_callback, tb_callback, nan_callback, cm_callback])
+        callbacks=[cp_callback, tb_callback, nan_callback, cm_callback, es_callback])
     # TODO: Switch to tf.data
 
     print('Training finished!')

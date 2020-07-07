@@ -11,6 +11,7 @@ pytest
 virtualenv
 pydot   # For tf.keras.utils.plot_model
 six     # For tf-nightly and tb-nightly
+lxml    # For creating xml files
 
 # Image Processing
 Pillow
