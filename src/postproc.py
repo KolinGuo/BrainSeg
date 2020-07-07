@@ -223,6 +223,8 @@ def method_6(mask_img: "Image", down_factor=4) -> "NDArray[np.uint8]":
     # pylint: enable=invalid-name
 
     width, height = mask_img.width, mask_img.height
+    area_threshold_prop = 0.05
+    area_threshold = int(area_threshold_prop * width * height // down_factor**2)
 
     # Downsample the image
     mask_arr = np.array(
@@ -249,6 +251,13 @@ def method_6(mask_img: "Image", down_factor=4) -> "NDArray[np.uint8]":
     # Apply area_closing to remove local minima with area < 12500 px
     mask_arr = morphology.area_closing(mask_arr, area_threshold=200000 // down_factor**2)
     print('Finish area_closing')
+
+    # Apply remove_small_objects to remove tissue residue with area < 0.05 * width * height
+    tissue_arr = morphology.remove_small_objects(mask_arr > 0, min_size=area_threshold,
+                                                 connectivity=2)
+    mask_arr[np.invert(tissue_arr)] = 0
+    del tissue_arr
+    print('Finish remove_small_objects')
 
     # Apply opening with disk-shaped kernel (r=8) to smooth boundary
     mask_arr = morphology.opening(mask_arr, selem=morphology.disk(radius=32 // down_factor))
