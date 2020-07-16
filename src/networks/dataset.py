@@ -609,12 +609,16 @@ def _split_trainval_five_fold_dataset(fold_num: int) \
                  4: ['4299', '4092', '4993', '4972', '4077', '3777', '4971', '5010',
                      '4391', '4195', '4967', '4992', '4256', '4160', '4107', '4894'],
                  5: ['4299', '4092', '4993', '4972', '4077', '3777', '4971', '5010',
-                     '4391', '4195', '4967', '4992', '4471', '4450', '4463', '4944']}
+                     '4391', '4195', '4967', '4992', '4471', '4450', '4463', '4944'],
+                 6: ['4299', '4092', '4993', '4972',
+                     '4077', '3777', '4971', '5010', '4391', '4195', '4967', '4992',
+                     '4471', '4450', '4463', '4944', '4256', '4160', '4107', '4894']}
     VAL_WSI = {1: ['4299', '4092', '4993', '4972'],
                2: ['4077', '3777', '4971', '5010'],
                3: ['4391', '4195', '4967', '4992'],
                4: ['4471', '4450', '4463', '4944'],
-               5: ['4256', '4160', '4107', '4894']}
+               5: ['4256', '4160', '4107', '4894'],
+               6: []}
 
     AD_WSI = ['3777', '4077', '4092', '4107', '4160', '4195', '4256', '4299', '4391',
               '4450', '4463', '4471', '4553', '4626', '4672', '4675', '4691', '4695']
@@ -626,8 +630,10 @@ def _split_trainval_five_fold_dataset(fold_num: int) \
     val_AD_idx = [AD_WSI.index(n) for n in VAL_WSI[fold_num] if n in AD_WSI]
     val_control_idx = [CONTROL_WSI.index(n) for n in VAL_WSI[fold_num] if n in CONTROL_WSI]
 
-    return {0: np.array(train_AD_idx), 1: np.array(val_AD_idx),
-            2: np.array(train_control_idx), 3: np.array(val_control_idx)}
+    return {0: np.array(train_AD_idx, dtype='int'),
+            1: np.array(val_AD_idx, dtype='int'),
+            2: np.array(train_control_idx, dtype='int'),
+            3: np.array(val_control_idx, dtype='int')}
 
 def generate_five_fold_dataset(data_dir_AD: str, data_dir_control: str,
                                patch_size: int, fold_num: int) \
@@ -736,10 +742,13 @@ def load_dataset(save_svs_file: str, save_train_file: str, save_val_file: str,
     val_paths = np.load(save_val_file)
 
     # Create train_dataset and val_dataset
-    train_dataset = BrainSegSequence(train_paths[:, 0], train_paths[:, 1],
-                                     batch_size)
-    val_dataset = BrainSegSequence(val_paths[:, 0], val_paths[:, 1],
-                                   batch_size)
+    train_dataset, val_dataset = None, None
+    if train_paths.size != 0:
+        train_dataset = BrainSegSequence(train_paths[:, 0], train_paths[:, 1],
+                                         batch_size)
+    if val_paths.size != 0:
+        val_dataset = BrainSegSequence(val_paths[:, 0], val_paths[:, 1],
+                                       batch_size)
 
     return train_dataset, val_dataset, class_weight
 

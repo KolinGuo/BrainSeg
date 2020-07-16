@@ -50,8 +50,9 @@ def get_parser() -> argparse.ArgumentParser:
         "--val-subsplits", type=int, default=1,
         help="Number to divide total number of val data for each epoch")
     dataset_parser.add_argument(
-        "--fold-num", type=int, choices=range(0, 6), default=0,
-        help="Perform 5-fold cross-validation if fold_num = [1, 2, 3, 4, 5]")
+        "--fold-num", type=int, choices=range(0, 7), default=0,
+        help="Perform 5-fold cross-validation if fold_num = [1, 2, 3, 4, 5]. "
+        "If fold_num = 6, train on train/val set with no validation set.")
 
     train_parser = main_parser.add_argument_group('Training configurations')
     train_parser.add_argument(
@@ -109,12 +110,22 @@ def log_configs(log_dir: str, dataset_filepath: str,
         tf.summary.text("Dataset", open(dataset_filepath).read(), step=0)
         for key, value in vars(args).items():
             tf.summary.text(str(key), str(value), step=0)
-        tf.summary.text(
-            "Train_Batches_per_epoch",
-            str(len(train_dataset)), step=0)
-        tf.summary.text(
-            "Val_Batches_per_epoch",
-            str(len(val_dataset) // args.val_subsplits), step=0)
+        if train_dataset:
+            tf.summary.text(
+                "Train_Batches_per_epoch",
+                str(len(train_dataset)), step=0)
+        else:
+            tf.summary.text(
+                "Train_Batches_per_epoch",
+                'None', step=0)
+        if val_dataset:
+            tf.summary.text(
+                "Val_Batches_per_epoch",
+                str(len(val_dataset) // args.val_subsplits), step=0)
+        else:
+            tf.summary.text(
+                "Val_Batches_per_epoch",
+                'None', step=0)
         writer.flush()
 
 def plot_confusion_matrix(cmat, class_names):
@@ -263,8 +274,12 @@ def train(args) -> None:
         os.makedirs(args.log_dir)
 
     # Create a callback that saves the model's weights every 1 epoch
-    ckpt_path = os.path.join(
-        args.ckpt_dir, 'cp-{epoch:03d}-{val_IoU/Mean:.4f}.ckpt')
+    if val_dataset:
+        ckpt_path = os.path.join(
+            args.ckpt_dir, 'cp-{epoch:03d}-{val_IoU/Mean:.4f}.ckpt')
+    else:
+        ckpt_path = os.path.join(
+            args.ckpt_dir, 'cp-{epoch:03d}-{IoU/Mean:.4f}.ckpt')
     cp_callback = callbacks.ModelCheckpoint(
         filepath=ckpt_path,
         verbose=1,
@@ -287,22 +302,32 @@ def train(args) -> None:
     nan_callback = callbacks.TerminateOnNaN()
 
     # Create an EarlyStopping callback
-    es_callback = callbacks.EarlyStopping(monitor='val_IoU/Mean',
-                                          min_delta=0.01,
-                                          patience=3,
-                                          verbose=1,
-                                          mode='max')
+    if val_dataset:
+        es_callback = callbacks.EarlyStopping(monitor='val_IoU/Mean',
+                                              min_delta=0.01,
+                                              patience=3,
+                                              verbose=1,
+                                              mode='max')
 
-    model.fit(
-        train_dataset,
-        epochs=args.num_epochs,
-        steps_per_epoch=len(train_dataset) \
-                if args.steps_per_epoch == -1 else args.steps_per_epoch,
-        initial_epoch=initial_epoch,
-        validation_data=val_dataset,
-        validation_steps=len(val_dataset) // args.val_subsplits \
-                if args.val_steps == -1 else args.val_steps,
-        callbacks=[cp_callback, tb_callback, nan_callback, cm_callback, es_callback])
+    if val_dataset:
+        model.fit(
+            train_dataset,
+            epochs=args.num_epochs,
+            steps_per_epoch=len(train_dataset) \
+                    if args.steps_per_epoch == -1 else args.steps_per_epoch,
+            initial_epoch=initial_epoch,
+            validation_data=val_dataset,
+            validation_steps=len(val_dataset) // args.val_subsplits \
+                    if args.val_steps == -1 else args.val_steps,
+            callbacks=[cp_callback, tb_callback, nan_callback, cm_callback, es_callback])
+    else:
+        model.fit(
+            train_dataset,
+            epochs=args.num_epochs,
+            steps_per_epoch=len(train_dataset) \
+                    if args.steps_per_epoch == -1 else args.steps_per_epoch,
+            initial_epoch=initial_epoch,
+            callbacks=[cp_callback, tb_callback, nan_callback, cm_callback])
     # TODO: Switch to tf.data
 
     print('Training finished!')
