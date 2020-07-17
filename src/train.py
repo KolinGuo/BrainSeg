@@ -185,10 +185,11 @@ def get_cm_callback(log_dir: str, class_names: List[str]) -> callbacks.Callback:
         with cm_image_writer.as_default():
             tf.summary.image("Train Confusion Matrix", cm_image, step=epoch)
 
-        figure = plot_confusion_matrix(logs['val_cm'], class_names=class_names)
-        cm_image = plot_to_image(figure)
-        with cm_image_writer.as_default():
-            tf.summary.image("Val Confusion Matrix", cm_image, step=epoch)
+        if 'val_cm' in logs:
+            figure = plot_confusion_matrix(logs['val_cm'], class_names=class_names)
+            cm_image = plot_to_image(figure)
+            with cm_image_writer.as_default():
+                tf.summary.image("Val Confusion Matrix", cm_image, step=epoch)
 
     cm_image_writer = tf.summary.create_file_writer(log_dir + "/cm")
     return callbacks.LambdaCallback(on_epoch_end=log_confusion_matrix)
