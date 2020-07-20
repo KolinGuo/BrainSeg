@@ -23,8 +23,8 @@ PyWavelets
 # ML Framework
 torch==0.3.1
 torchvision==0.2.1
-tf-nightly-gpu
-tb-nightly
+tensorflow
+tensorboard
 tensorboard_plugin_profile
 tfds-nightly
 
