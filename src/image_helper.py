@@ -204,6 +204,8 @@ def resize_to_original(args: argparse.Namespace) -> None:
 
         save_predicted_masks(img_arr, output_dir, svs_name)
 
+        del vips_img, img, img_arr
+
     print('Done!')
 
 class SubcommandHelpFormatter(argparse.RawDescriptionHelpFormatter):
