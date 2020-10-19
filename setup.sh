@@ -127,6 +127,11 @@ export TERM=xterm-256color
 alias grep="grep --color=auto"
 alias ls="ls --color=auto"
 
+# some more ls aliases
+alias ll="ls -alF"
+alias la="ls -A"
+alias l="ls -CF"
+
 # Cyan color
 echo -e "\e[1;36m"
 
@@ -155,7 +160,7 @@ EOF
     echo echo -e \"\\tCommand to install gSLICr for the first time:\\n\\t\\t'${COMMANDTOINSTALLGSLICR}'\\n\" >> bashrc
   fi
   if [ ! -z "$COMMANDTORUNTENSORBOARD" ] ; then
-    echo echo -e \"\\tCommand to run:\\n\\t\\t'${COMMANDTORUNTENSORBOARD}'\\n\" >> bashrc
+    echo echo -e \"\\tCommand to run TensorBoard:\\n\\t\\t'${COMMANDTORUNTENSORBOARD}'\\n\" >> bashrc
   fi
   echo echo -e \"################################################################################\\n\" >> bashrc \
     && echo >> bashrc
