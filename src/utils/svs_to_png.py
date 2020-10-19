@@ -1,4 +1,6 @@
-import os, glob
+#!/usr/bin/env python3
+# PYTHON_ARGCOMPLETE_OK
+import os, sys, glob
 import numpy as np
 import pyvips as Vips
 from tqdm import tqdm
@@ -7,7 +9,8 @@ Image.MAX_IMAGE_PIXELS = None
 PIL_TILE_SIZE = 30000
 from typing import Any
 
-from .numpy_pil_helper import numpy_to_pil_rgb
+sys.path.append('/BrainSeg/src/utils')
+from numpy_pil_helper import numpy_to_pil_rgb
 
 import logging
 logger = logging.getLogger('svs_to_png')
@@ -122,10 +125,12 @@ def svs_to_png_batch(input_dir: str, output_dir: str) -> None:
 if __name__ == '__main__':
     ### For testing ###
     import argparse
+    import argcomplete
     parser = argparse.ArgumentParser()
 
     parser.add_argument("input_dir", type=str, help="Input Directory of .svs files")
     parser.add_argument("output_dir", type=str, help="Output Directory of .png files")
+    argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
     print("Input directory: " + args.input_dir)

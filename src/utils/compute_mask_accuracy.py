@@ -3,8 +3,11 @@
 from datetime import datetime
 from collections import OrderedDict     # for easy saving
 from textwrap import dedent             # for string formatting
-import os, sys, glob
-import argparse, argcomplete
+import os
+import sys
+import glob
+import argparse
+import argcomplete
 import numpy as np
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = None

@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# PYTHON_ARGCOMPLETE_OK
 import os, glob, logging
 import re   # regex split
 import gc   # Garbage Collector interface
@@ -501,11 +503,13 @@ def separate_tissue_png_batch(input_dir: str, stain_mat_dir: str, output_dir: st
 if __name__ == '__main__':
     ### For testing ###
     import argparse
+    import argcomplete
     parser = argparse.ArgumentParser()
 
     parser.add_argument("input_dir", type=str, help="Input Directory of .png files (original WSI image)")
     parser.add_argument("stain_mat_dir", type=str, help="Directory of .txt files (stain matrices)")
     parser.add_argument("output_dir", type=str, help="Output Directory of .png files")
+    argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
     print("Input directory: " + args.input_dir)

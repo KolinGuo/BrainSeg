@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# PYTHON_ARGCOMPLETE_OK
 """Tissue Separation Script (Traditional Image Processing Technique)"""
 
 import os
@@ -6,11 +8,14 @@ import glob
 import logging
 import gc   # Garbage Collector interface
 import argparse
+import argcomplete
 from time import time
 from datetime import datetime
 
 import numpy as np
 from tqdm import tqdm
+
+sys.path.append("/BrainSeg/src/utils")
 
 from utils.svs_to_png import svs_to_numpy
 from utils.separate_tissue import separate_tissue
@@ -26,7 +31,7 @@ def parse_arguments() -> argparse.Namespace:
 
     parser.add_argument(
         "input_dir", type=str,
-        help="Input Directory of .png files (original WSI image)")
+        help="Input Directory of .svs files (original WSI image)")
     parser.add_argument(
         "output_dir", type=str,
         help="Output Directory of .png files")
@@ -39,6 +44,7 @@ def parse_arguments() -> argparse.Namespace:
         "--log_filename", type=str, default=log_filename,
         help="Log file name (current timestamp) DON'T MODIFY")
 
+    argcomplete.autocomplete(parser)
     return parser.parse_args()
 
 def log_args(args: argparse.Namespace) -> None:
