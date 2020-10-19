@@ -31,7 +31,7 @@ You should be greeted by the Docker container **brainseg** when this script
 finishes. The working directory is */BrainSeg* which is where the repo is
 mounted at.  
 
-##### Port allocations
+#### Port allocations
 * Jupyter notebook: 9000
 * TensorBoard: 6006
 
@@ -91,7 +91,7 @@ Some special ones are:
     * [train.py](src/train.py) - Training script
 * [tests/](tests) - Testing cases for source code using Python `unittest`.
 
-##### Note
+#### Note
 In this repo, all Python scripts that are meant to be run as top-level scripts
 support [`argparse`](https://docs.python.org/3/library/argparse.html).  
 That is, input arguments can be specified to change the default behavior.
