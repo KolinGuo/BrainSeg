@@ -1,5 +1,5 @@
 # BrainSeg
-Automated Grey and White Matter Segmentation in Digitized A$\boldsymbol{\beta}$
+Automated Grey and White Matter Segmentation in Digitized A*β*
 Human Brain Tissue WSI
 
 ## Authors / Contributors
