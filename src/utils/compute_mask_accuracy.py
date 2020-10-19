@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.6
+#!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
 from datetime import datetime
 from collections import OrderedDict     # for easy saving
